@@ -91,6 +91,17 @@ class AdminCreate(BaseModel):
     password: str
     name: str
 
+class EmailRequest(BaseModel):
+    email: EmailStr
+    name: Optional[str] = ""
+
+class BulkEmailRequest(BaseModel):
+    recipients: List[EmailRequest]
+    count: Optional[int] = None
+    expires_days: Optional[int] = None
+    max_usage: Optional[int] = None
+    course_ids: List[str] = []
+
 class UserProgress(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_access_key: str
