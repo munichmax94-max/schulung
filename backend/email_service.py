@@ -45,6 +45,10 @@ class EmailService:
         Returns:
             bool: True if email sent successfully, False otherwise
         """
+        if not self.is_configured:
+            logger.error("Cannot send email: SMTP is not configured")
+            return False
+            
         try:
             # Create message
             msg = MIMEMultipart("alternative")
