@@ -327,6 +327,9 @@ const CourseList = () => {
 
 const CourseDetail = () => {
   const [course, setCourse] = useState(null);
+  const [progress, setProgress] = useState(null);
+  const [activeModule, setActiveModule] = useState(null);
+  const [showQuiz, setShowQuiz] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -334,6 +337,7 @@ const CourseDetail = () => {
 
   useEffect(() => {
     fetchCourse();
+    fetchProgress();
   }, [courseId]);
 
   const fetchCourse = async () => {
@@ -360,6 +364,61 @@ const CourseDetail = () => {
     }
   };
 
+  const fetchProgress = async () => {
+    try {
+      const response = await axios.get(`${API}/courses/${courseId}/progress`, {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      });
+      setProgress(response.data);
+    } catch (error) {
+      console.error('Error fetching progress:', error);
+      // Don't show error as progress might not exist yet
+    }
+  };
+
+  const handleModuleComplete = async (moduleId) => {
+    try {
+      await axios.post(`${API}/courses/${courseId}/modules/${moduleId}/complete`, {}, {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      });
+      toast.success("Modul als abgeschlossen markiert!");
+      fetchProgress(); // Refresh progress
+    } catch (error) {
+      console.error('Error completing module:', error);
+      toast.error("Fehler beim Abschließen des Moduls");
+    }
+  };
+
+  const handleStartQuiz = (module) => {
+    setActiveModule(module);
+    setShowQuiz(true);
+  };
+
+  const handleQuizComplete = (result) => {
+    setShowQuiz(false);
+    setActiveModule(null);
+    
+    if (result && result.passed) {
+      toast.success("Quiz erfolgreich bestanden! 🎉");
+    }
+    
+    fetchProgress(); // Refresh progress after quiz completion
+  };
+
+  const handleQuizCancel = () => {
+    setShowQuiz(false);
+    setActiveModule(null);
+  };
+
+  const getModuleProgress = (moduleId) => {
+    if (!progress || !progress.module_progress) return null;
+    return progress.module_progress.find(mp => mp.module_id === moduleId);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
@@ -382,6 +441,43 @@ const CourseDetail = () => {
             </Button>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // Show quiz if active
+  if (showQuiz && activeModule && activeModule.content.quiz) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+        <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center h-16">
+              <Button 
+                variant="ghost" 
+                onClick={handleQuizCancel}
+                className="mr-4"
+              >
+                ← Zurück zum Kurs
+              </Button>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 text-white" />
+                </div>
+                <h1 className="text-xl font-bold text-gray-900">{activeModule.title}</h1>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <QuizRunner
+            quiz={activeModule.content.quiz}
+            courseId={courseId}
+            moduleId={activeModule.id}
+            onComplete={handleQuizComplete}
+            onCancel={handleQuizCancel}
+          />
+        </main>
       </div>
     );
   }
@@ -411,7 +507,8 @@ const CourseDetail = () => {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Card className="bg-white/80 backdrop-blur-sm">
+        {/* Course Overview */}
+        <Card className="bg-white/80 backdrop-blur-sm mb-8">
           <CardHeader>
             <CardTitle className="text-2xl">{course.title}</CardTitle>
             <CardDescription className="text-lg">
@@ -419,6 +516,27 @@ const CourseDetail = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Course Progress */}
+            {progress && progress.course_progress && (
+              <div className="mb-6 p-4 bg-emerald-50 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium">Kursfortschritt</span>
+                  <span className="text-emerald-600 font-bold">
+                    {Math.round(progress.course_progress.progress_percentage || 0)}%
+                  </span>
+                </div>
+                <div className="w-full bg-emerald-200 rounded-full h-2">
+                  <div 
+                    className="bg-emerald-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progress.course_progress.progress_percentage || 0}%` }}
+                  ></div>
+                </div>
+                <div className="text-sm text-emerald-700 mt-2">
+                  {progress.course_progress.completed_modules} von {progress.course_progress.total_modules} Module abgeschlossen
+                </div>
+              </div>
+            )}
+
             <div className="prose prose-emerald max-w-none">
               {course.content ? (
                 <div dangerouslySetInnerHTML={{ __html: course.content.replace(/\n/g, '<br>') }} />
@@ -428,22 +546,129 @@ const CourseDetail = () => {
                 </p>
               )}
             </div>
-
-            {course.modules && course.modules.length > 0 && (
-              <div className="mt-8">
-                <h3 className="text-lg font-semibold mb-4">Kursmodule</h3>
-                <div className="space-y-2">
-                  {course.modules.map((module, index) => (
-                    <Card key={index} className="p-4">
-                      <h4 className="font-medium">{module.title}</h4>
-                      <p className="text-sm text-gray-600">{module.description}</p>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
+
+        {/* Course Modules */}
+        {course.modules && course.modules.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Kursmodule</h2>
+            
+            {course.modules
+              .sort((a, b) => (a.order || 0) - (b.order || 0))
+              .map((module, index) => {
+                const moduleProgress = getModuleProgress(module.id);
+                const isCompleted = moduleProgress?.completed || false;
+                const hasQuiz = module.content.quiz && module.content.quiz.questions.length > 0;
+                
+                return (
+                  <Card key={module.id} className="hover:shadow-lg transition-shadow">
+                    <CardContent className="p-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-600 font-semibold text-sm">
+                              {index + 1}
+                            </span>
+                            <div>
+                              <h3 className="text-lg font-semibold">{module.title}</h3>
+                              {module.description && (
+                                <p className="text-gray-600 text-sm">{module.description}</p>
+                              )}
+                            </div>
+                            {isCompleted && (
+                              <CheckCircle className="w-6 h-6 text-green-500" />
+                            )}
+                          </div>
+
+                          {/* Module Content */}
+                          <div className="ml-11">
+                            {module.content.text_content && (
+                              <div className="prose prose-sm max-w-none mb-4">
+                                <div dangerouslySetInnerHTML={{ 
+                                  __html: module.content.text_content.replace(/\n/g, '<br>') 
+                                }} />
+                              </div>
+                            )}
+
+                            {module.content.video_url && (
+                              <div className="mb-4">
+                                <p className="text-sm font-medium text-gray-700 mb-2">📹 Video:</p>
+                                <a 
+                                  href={module.content.video_url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-emerald-600 hover:text-emerald-700"
+                                >
+                                  {module.content.video_url}
+                                </a>
+                              </div>
+                            )}
+
+                            {module.content.file_urls && module.content.file_urls.length > 0 && (
+                              <div className="mb-4">
+                                <p className="text-sm font-medium text-gray-700 mb-2">📁 Dateien:</p>
+                                <ul className="space-y-1">
+                                  {module.content.file_urls.map((url, index) => (
+                                    <li key={index}>
+                                      <a 
+                                        href={url} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="text-emerald-600 hover:text-emerald-700 text-sm"
+                                      >
+                                        📎 {url.split('/').pop() || `Datei ${index + 1}`}
+                                      </a>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {/* Module Actions */}
+                            <div className="flex gap-2 mt-4">
+                              {hasQuiz && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleStartQuiz(module)}
+                                  className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                                >
+                                  <HelpCircle className="w-4 h-4 mr-2" />
+                                  Quiz starten
+                                  {moduleProgress?.score !== undefined && (
+                                    <Badge variant="outline" className="ml-2">
+                                      {Math.round(moduleProgress.score)}%
+                                    </Badge>
+                                  )}
+                                </Button>
+                              )}
+
+                              {!hasQuiz && !isCompleted && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleModuleComplete(module.id)}
+                                >
+                                  Als abgeschlossen markieren
+                                </Button>
+                              )}
+
+                              {module.estimated_duration_minutes && (
+                                <Badge variant="outline" className="text-xs">
+                                  ⏱️ {module.estimated_duration_minutes} Min.
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+          </div>
+        )}
       </main>
     </div>
   );
