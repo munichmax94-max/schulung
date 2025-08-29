@@ -267,7 +267,7 @@ class EmailService:
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="https://schulungsportal.preview.emergentagent.com" class="button">
+                    <a href="https://edukeys.preview.emergentagent.com" class="button">
                         Jetzt zum Schulungsportal
                     </a>
                 </div>
@@ -304,7 +304,7 @@ class EmailService:
         Ihr Access-Key: {access_key}
 
         So greifen Sie auf Ihre Schulungen zu:
-        1. Besuchen Sie: https://schulungsportal.preview.emergentagent.com
+        1. Besuchen Sie: https://edukeys.preview.emergentagent.com
         2. Geben Sie Ihren Access-Key ein: {access_key}
         3. Klicken Sie auf "Zugriff freischalten"
         4. Beginnen Sie mit Ihrer Schulung

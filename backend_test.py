@@ -3,7 +3,7 @@ import sys
 from datetime import datetime
 
 class SchulungsportalAPITester:
-    def __init__(self, base_url="https://schulungsportal.preview.emergentagent.com"):
+    def __init__(self, base_url="https://edukeys.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.user_token = None
