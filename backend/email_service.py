@@ -21,9 +21,16 @@ class EmailService:
         self.sender_email = os.environ.get("SENDER_EMAIL")
         self.sender_name = os.environ.get("SENDER_NAME", "Schulungsportal")
         
-        # Validate configuration
-        if not all([self.smtp_server, self.smtp_username, self.smtp_password, self.sender_email]):
-            raise ValueError("SMTP configuration is incomplete. Please check environment variables.")
+        # Check if SMTP is configured
+        self.is_configured = all([
+            self.smtp_server, 
+            self.smtp_username, 
+            self.smtp_password, 
+            self.sender_email
+        ])
+        
+        if not self.is_configured:
+            logger.warning("SMTP configuration is incomplete. Email features will be disabled.")
     
     def send_email(self, to_email: str, subject: str, html_content: str, plain_content: Optional[str] = None) -> bool:
         """
