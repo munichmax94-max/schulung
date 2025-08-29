@@ -95,6 +95,10 @@ class EmailService:
         Returns:
             bool: True if email sent successfully
         """
+        if not self.is_configured:
+            logger.error("Cannot send access key email: SMTP is not configured")
+            return False
+            
         subject = "Ihr Access-Key für das Schulungsportal"
         
         # Greeting
