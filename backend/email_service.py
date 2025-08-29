@@ -361,5 +361,15 @@ class EmailService:
         
         return results
 
-# Global email service instance
-email_service = EmailService()
+# Global email service instance - initialized lazily
+_email_service_instance = None
+
+def get_email_service():
+    """Get email service instance (lazy initialization)"""
+    global _email_service_instance
+    if _email_service_instance is None:
+        _email_service_instance = EmailService()
+    return _email_service_instance
+
+# Alias for backward compatibility
+email_service = get_email_service()
