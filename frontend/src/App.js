@@ -1548,18 +1548,206 @@ const EmailTab = () => {
 
 // Users Tab Component
 const UsersTab = () => {
+  const [users, setUsers] = useState([]);
+  const [statistics, setStatistics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { admin } = useAuth();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const [usersResponse, statsResponse] = await Promise.all([
+        axios.get(`${API}/admin/users`, {
+          headers: { Authorization: `Bearer ${admin.token}` }
+        }),
+        axios.get(`${API}/admin/statistics`, {
+          headers: { Authorization: `Bearer ${admin.token}` }
+        })
+      ]);
+      
+      setUsers(usersResponse.data);
+      setStatistics(statsResponse.data);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      toast.error("Fehler beim Laden der Benutzerdaten");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Nie';
+    return new Date(dateString).toLocaleDateString('de-DE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getActivityStatus = (lastLogin) => {
+    if (!lastLogin) return { status: 'Nie angemeldet', color: 'bg-gray-100 text-gray-800' };
+    
+    const loginDate = new Date(lastLogin);
+    const now = new Date();
+    const daysDiff = (now - loginDate) / (1000 * 60 * 60 * 24);
+    
+    if (daysDiff < 1) return { status: 'Heute aktiv', color: 'bg-green-100 text-green-800' };
+    if (daysDiff < 7) return { status: 'Diese Woche', color: 'bg-blue-100 text-blue-800' };
+    if (daysDiff < 30) return { status: 'Diesen Monat', color: 'bg-yellow-100 text-yellow-800' };
+    
+    return { status: 'Länger inaktiv', color: 'bg-gray-100 text-gray-800' };
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-gray-600">Benutzerdaten werden geladen...</p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Benutzerverwaltung</h2>
-      <Card>
-        <CardContent className="p-8 text-center">
-          <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Benutzerverwaltung in Entwicklung</h3>
-          <p className="text-gray-600">
-            Die Benutzerverwaltung wird in der nächsten Version verfügbar sein.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Benutzerverwaltung</h2>
+          <p className="text-gray-600">Übersicht über alle registrierten Benutzer</p>
+        </div>
+      </div>
+
+      {/* Statistics Cards */}
+      {statistics && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <Users className="w-8 h-8 text-blue-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Gesamt Benutzer</p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.users.total}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <CheckCircle className="w-8 h-8 text-green-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Kürzlich aktiv</p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.users.recent_active}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <Key className="w-8 h-8 text-purple-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Aktive Keys</p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.access_keys.active}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center">
+                <BookOpen className="w-8 h-8 text-emerald-600" />
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Gesamtnutzung</p>
+                  <p className="text-2xl font-bold text-gray-900">{statistics.usage.total_usage}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Users List */}
+      {users.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Keine Benutzer registriert</h3>
+            <p className="text-gray-600">
+              Benutzer werden automatisch registriert, wenn sie sich mit einem Access-Key anmelden.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Registrierte Benutzer</CardTitle>
+            <CardDescription>
+              Übersicht aller Benutzer, die sich mit einem Access-Key angemeldet haben
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Access-Key</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Aktivitätsstatus</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Erstregistrierung</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Letzter Login</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-600">Benutzer-ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((user) => {
+                    const activityStatus = getActivityStatus(user.last_login);
+                    return (
+                      <tr key={user.id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4">
+                          <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
+                            {user.access_key.substring(0, 12)}...
+                          </code>
+                        </td>
+                        
+                        <td className="py-3 px-4">
+                          <Badge className={activityStatus.color}>
+                            {activityStatus.status}
+                          </Badge>
+                        </td>
+                        
+                        <td className="py-3 px-4">
+                          <span className="text-sm text-gray-600">
+                            {formatDate(user.created_at)}
+                          </span>
+                        </td>
+                        
+                        <td className="py-3 px-4">
+                          <span className="text-sm text-gray-600">
+                            {formatDate(user.last_login)}
+                          </span>
+                        </td>
+                        
+                        <td className="py-3 px-4">
+                          <span className="text-xs text-gray-500 font-mono">
+                            {user.id.substring(0, 8)}...
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
