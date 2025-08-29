@@ -863,18 +863,421 @@ const CoursesTab = () => {
 
 // Access Keys Tab Component  
 const AccessKeysTab = () => {
+  const [accessKeys, setAccessKeys] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeSubTab, setActiveSubTab] = useState("overview");
+  const { admin } = useAuth();
+
+  useEffect(() => {
+    loadAccessKeys();
+    loadUsers();
+  }, []);
+
+  const loadAccessKeys = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/access-keys`, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      setAccessKeys(response.data);
+    } catch (error) {
+      console.error('Error loading access keys:', error);
+      toast.error("Fehler beim Laden der Access-Keys");
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/users`, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      setUsers(response.data);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      // Don't show error toast as users endpoint might not exist yet
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleKeyStatus = async (keyId, currentStatus) => {
+    try {
+      await axios.patch(`${API}/admin/access-keys/${keyId}`, {
+        is_active: !currentStatus
+      }, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      
+      toast.success(currentStatus ? "Access-Key deaktiviert" : "Access-Key aktiviert");
+      loadAccessKeys();
+    } catch (error) {
+      console.error('Error toggling key status:', error);
+      toast.error("Fehler beim Ändern des Key-Status");
+    }
+  };
+
+  const deleteKey = async (keyId) => {
+    if (!window.confirm("Sind Sie sicher, dass Sie diesen Access-Key löschen möchten?")) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API}/admin/access-keys/${keyId}`, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      
+      toast.success("Access-Key erfolgreich gelöscht");
+      loadAccessKeys();
+    } catch (error) {
+      console.error('Error deleting key:', error);
+      toast.error("Fehler beim Löschen des Access-Keys");
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success("In Zwischenablage kopiert!");
+  };
+
+  const getKeyStatus = (key) => {
+    if (!key.is_active) return { status: 'Deaktiviert', color: 'bg-red-100 text-red-800' };
+    
+    if (key.expires_at && new Date(key.expires_at) < new Date()) {
+      return { status: 'Abgelaufen', color: 'bg-orange-100 text-orange-800' };
+    }
+    
+    if (key.max_usage && key.usage_count >= key.max_usage) {
+      return { status: 'Limit erreicht', color: 'bg-orange-100 text-orange-800' };
+    }
+    
+    return { status: 'Aktiv', color: 'bg-green-100 text-green-800' };
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unbegrenzt';
+    return new Date(dateString).toLocaleDateString('de-DE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-gray-600">Access-Keys werden geladen...</p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Access-Key Verwaltung</h2>
-      <Card>
-        <CardContent className="p-8 text-center">
-          <Key className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Key-Verwaltung in Entwicklung</h3>
-          <p className="text-gray-600">
-            Die erweiterte Access-Key-Verwaltung wird in der nächsten Version verfügbar sein.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Access-Key Verwaltung</h2>
+          <p className="text-gray-600">Verwalten Sie alle generierten Access-Keys</p>
+        </div>
+      </div>
+
+      {/* Sub Navigation */}
+      <div className="border-b border-gray-200 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          {[
+            { id: "overview", label: "Übersicht", icon: Key },
+            { id: "statistics", label: "Statistiken", icon: Users },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+                activeSubTab === tab.id
+                  ? "border-emerald-500 text-emerald-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Overview Tab */}
+      {activeSubTab === "overview" && (
+        <div className="space-y-4">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <Key className="w-8 h-8 text-blue-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Gesamt Keys</p>
+                    <p className="text-2xl font-bold text-gray-900">{accessKeys.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Aktive Keys</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {accessKeys.filter(key => getKeyStatus(key).status === 'Aktiv').length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <Users className="w-8 h-8 text-purple-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Verwendungen</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {accessKeys.reduce((sum, key) => sum + (key.usage_count || 0), 0)}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center">
+                  <Mail className="w-8 h-8 text-emerald-600" />
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Heute erstellt</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {accessKeys.filter(key => {
+                        const today = new Date().toDateString();
+                        const keyDate = new Date(key.created_at).toDateString();
+                        return today === keyDate;
+                      }).length}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Keys List */}
+          {accessKeys.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Key className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Keine Access-Keys vorhanden</h3>
+                <p className="text-gray-600">
+                  Erstellen Sie Access-Keys über die E-Mail-Versendung.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Alle Access-Keys</CardTitle>
+                <CardDescription>
+                  Übersicht aller generierten Access-Keys mit Status und Nutzungsinformationen
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Access-Key</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Nutzung</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Erstellt</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Gültig bis</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Ersteller</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-600">Aktionen</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accessKeys.map((key) => {
+                        const keyStatus = getKeyStatus(key);
+                        return (
+                          <tr key={key.id} className="border-b hover:bg-gray-50">
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
+                                  {key.key.substring(0, 8)}...
+                                </code>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => copyToClipboard(key.key)}
+                                  className="p-1"
+                                >
+                                  📋
+                                </Button>
+                              </div>
+                            </td>
+                            
+                            <td className="py-3 px-4">
+                              <Badge className={keyStatus.color}>
+                                {keyStatus.status}
+                              </Badge>
+                            </td>
+                            
+                            <td className="py-3 px-4">
+                              <span className="text-sm">
+                                {key.usage_count || 0}
+                                {key.max_usage ? ` / ${key.max_usage}` : ' / ∞'}
+                              </span>
+                            </td>
+                            
+                            <td className="py-3 px-4">
+                              <span className="text-sm text-gray-600">
+                                {formatDate(key.created_at)}
+                              </span>
+                            </td>
+                            
+                            <td className="py-3 px-4">
+                              <span className="text-sm text-gray-600">
+                                {formatDate(key.expires_at)}
+                              </span>
+                            </td>
+                            
+                            <td className="py-3 px-4">
+                              <span className="text-sm text-gray-600">
+                                {key.created_by || 'System'}
+                              </span>
+                            </td>
+                            
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => toggleKeyStatus(key.id, key.is_active)}
+                                  className={key.is_active ? "text-orange-600" : "text-green-600"}
+                                >
+                                  {key.is_active ? '⏸️' : '▶️'}
+                                </Button>
+                                
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteKey(key.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  🗑️
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* Statistics Tab */}
+      {activeSubTab === "statistics" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Nutzungsstatistiken</CardTitle>
+              <CardDescription>
+                Detaillierte Statistiken zur Access-Key-Nutzung
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium mb-4">Keys nach Status</h4>
+                  <div className="space-y-2">
+                    {[
+                      { label: 'Aktiv', count: accessKeys.filter(k => getKeyStatus(k).status === 'Aktiv').length, color: 'text-green-600' },
+                      { label: 'Deaktiviert', count: accessKeys.filter(k => getKeyStatus(k).status === 'Deaktiviert').length, color: 'text-red-600' },
+                      { label: 'Abgelaufen', count: accessKeys.filter(k => getKeyStatus(k).status === 'Abgelaufen').length, color: 'text-orange-600' },
+                      { label: 'Limit erreicht', count: accessKeys.filter(k => getKeyStatus(k).status === 'Limit erreicht').length, color: 'text-purple-600' }
+                    ].map(stat => (
+                      <div key={stat.label} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">{stat.label}</span>
+                        <span className={`font-medium ${stat.color}`}>{stat.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-4">Erstellung nach Zeit</h4>
+                  <div className="space-y-2">
+                    {[
+                      { 
+                        label: 'Heute', 
+                        count: accessKeys.filter(k => {
+                          const today = new Date().toDateString();
+                          return new Date(k.created_at).toDateString() === today;
+                        }).length 
+                      },
+                      { 
+                        label: 'Diese Woche', 
+                        count: accessKeys.filter(k => {
+                          const weekAgo = new Date();
+                          weekAgo.setDate(weekAgo.getDate() - 7);
+                          return new Date(k.created_at) > weekAgo;
+                        }).length 
+                      },
+                      { 
+                        label: 'Dieser Monat', 
+                        count: accessKeys.filter(k => {
+                          const monthAgo = new Date();
+                          monthAgo.setMonth(monthAgo.getMonth() - 1);
+                          return new Date(k.created_at) > monthAgo;
+                        }).length 
+                      }
+                    ].map(stat => (
+                      <div key={stat.label} className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">{stat.label}</span>
+                        <span className="font-medium text-emerald-600">{stat.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h4 className="font-medium mb-4">Meist verwendete Keys</h4>
+                <div className="space-y-2">
+                  {accessKeys
+                    .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+                    .slice(0, 5)
+                    .map((key, index) => (
+                      <div key={key.id} className="flex justify-between items-center py-2 px-3 bg-gray-50 rounded">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
+                          <code className="text-sm bg-white px-2 py-1 rounded">
+                            {key.key.substring(0, 12)}...
+                          </code>
+                        </div>
+                        <span className="font-medium text-emerald-600">
+                          {key.usage_count || 0} Verwendungen
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
