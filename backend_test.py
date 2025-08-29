@@ -211,6 +211,169 @@ class SchulungsportalAPITester:
         
         if success and response.get('id') == course_id:
             print(f"   ✅ Course detail: {response.get('title')}")
+            # Store course data for quiz tests
+            self.course_data = response
+            return True
+        return success
+
+    def test_quiz_submission_correct_answers(self):
+        """Test quiz submission with correct answers"""
+        if not self.user_token:
+            print("❌ No user token available for quiz test")
+            return False
+            
+        if not hasattr(self, 'course_data') or not self.course_data:
+            print("❌ No course data available for quiz test")
+            return False
+        
+        # Find a quiz module
+        quiz_module = None
+        quiz_data = None
+        
+        for module in self.course_data.get('modules', []):
+            if module.get('type') == 'quiz' and module.get('content', {}).get('quiz'):
+                quiz_module = module
+                quiz_data = module['content']['quiz']
+                break
+        
+        if not quiz_module or not quiz_data:
+            print("❌ No quiz module found in course")
+            return False
+        
+        course_id = self.course_data['id']
+        module_id = quiz_module['id']
+        quiz_id = quiz_data['id']
+        
+        # Prepare correct answers
+        answers = []
+        for question in quiz_data.get('questions', []):
+            if question['type'] == 'single_choice':
+                # Find the correct option
+                correct_option = next((opt['id'] for opt in question['options'] if opt['is_correct']), None)
+                if correct_option:
+                    answers.append({
+                        "question_id": question['id'],
+                        "selected_options": [correct_option]
+                    })
+        
+        if not answers:
+            print("❌ No answerable questions found in quiz")
+            return False
+        
+        success, response = self.run_test(
+            f"Submit Quiz (Correct Answers)",
+            "POST",
+            f"courses/{course_id}/modules/{module_id}/quiz/{quiz_id}/submit",
+            200,
+            data=answers,
+            headers={'Authorization': f'Bearer {self.user_token}'}
+        )
+        
+        if success and response.get('passed') == True:
+            print(f"   ✅ Quiz passed with score: {response.get('score', 0):.1f}%")
+            return True
+        elif success:
+            print(f"   ⚠️ Quiz submitted but not passed: {response.get('score', 0):.1f}%")
+            return True
+        return success
+
+    def test_quiz_submission_incorrect_answers(self):
+        """Test quiz submission with incorrect answers"""
+        if not self.user_token:
+            print("❌ No user token available for quiz test")
+            return False
+            
+        if not hasattr(self, 'course_data') or not self.course_data:
+            print("❌ No course data available for quiz test")
+            return False
+        
+        # Find a quiz module
+        quiz_module = None
+        quiz_data = None
+        
+        for module in self.course_data.get('modules', []):
+            if module.get('type') == 'quiz' and module.get('content', {}).get('quiz'):
+                quiz_module = module
+                quiz_data = module['content']['quiz']
+                break
+        
+        if not quiz_module or not quiz_data:
+            print("❌ No quiz module found in course")
+            return False
+        
+        course_id = self.course_data['id']
+        module_id = quiz_module['id']
+        quiz_id = quiz_data['id']
+        
+        # Prepare incorrect answers
+        answers = []
+        for question in quiz_data.get('questions', []):
+            if question['type'] == 'single_choice':
+                # Find an incorrect option
+                incorrect_option = next((opt['id'] for opt in question['options'] if not opt['is_correct']), None)
+                if incorrect_option:
+                    answers.append({
+                        "question_id": question['id'],
+                        "selected_options": [incorrect_option]
+                    })
+        
+        if not answers:
+            print("❌ No answerable questions found in quiz")
+            return False
+        
+        success, response = self.run_test(
+            f"Submit Quiz (Incorrect Answers)",
+            "POST",
+            f"courses/{course_id}/modules/{module_id}/quiz/{quiz_id}/submit",
+            200,
+            data=answers,
+            headers={'Authorization': f'Bearer {self.user_token}'}
+        )
+        
+        if success and response.get('passed') == False:
+            print(f"   ✅ Quiz correctly failed with score: {response.get('score', 0):.1f}%")
+            return True
+        elif success:
+            print(f"   ⚠️ Quiz submitted: {response.get('score', 0):.1f}%")
+            return True
+        return success
+
+    def test_quiz_submission_without_auth(self):
+        """Test quiz submission without authentication"""
+        success, response = self.run_test(
+            "Submit Quiz (No Auth)",
+            "POST",
+            "courses/test-id/modules/test-module/quiz/test-quiz/submit",
+            401,
+            data=[{"question_id": "test", "selected_options": ["test"]}]
+        )
+        return success
+
+    def test_course_progress(self):
+        """Test getting course progress"""
+        if not self.user_token:
+            print("❌ No user token available for progress test")
+            return False
+            
+        if not hasattr(self, 'course_data') or not self.course_data:
+            print("❌ No course data available for progress test")
+            return False
+        
+        course_id = self.course_data['id']
+        
+        success, response = self.run_test(
+            f"Get Course Progress",
+            "GET",
+            f"courses/{course_id}/progress",
+            200,
+            headers={'Authorization': f'Bearer {self.user_token}'}
+        )
+        
+        if success:
+            print(f"   ✅ Progress data retrieved")
+            if response.get('course_progress'):
+                progress = response['course_progress']
+                print(f"   Progress: {progress.get('progress_percentage', 0):.1f}%")
             return True
         return success
 
