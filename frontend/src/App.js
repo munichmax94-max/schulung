@@ -865,13 +865,17 @@ const CoursesTab = () => {
 const AccessKeysTab = () => {
   const [accessKeys, setAccessKeys] = useState([]);
   const [users, setUsers] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeSubTab, setActiveSubTab] = useState("overview");
+  const [editingKey, setEditingKey] = useState(null);
+  const [showCourseDialog, setShowCourseDialog] = useState(false);
   const { admin } = useAuth();
 
   useEffect(() => {
     loadAccessKeys();
     loadUsers();
+    loadCourses();
   }, []);
 
   const loadAccessKeys = async () => {
@@ -897,6 +901,18 @@ const AccessKeysTab = () => {
       // Don't show error toast as users endpoint might not exist yet
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCourses = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/courses`, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      setCourses(response.data);
+    } catch (error) {
+      console.error('Error loading courses:', error);
+      toast.error("Fehler beim Laden der Kurse");
     }
   };
 
@@ -939,6 +955,29 @@ const AccessKeysTab = () => {
     toast.success("In Zwischenablage kopiert!");
   };
 
+  const handleManageCourses = (key) => {
+    setEditingKey(key);
+    setShowCourseDialog(true);
+  };
+
+  const updateKeyCourses = async (keyId, courseIds) => {
+    try {
+      await axios.patch(`${API}/admin/access-keys/${keyId}`, {
+        course_ids: courseIds
+      }, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      
+      toast.success("Kurszuweisung erfolgreich aktualisiert!");
+      loadAccessKeys();
+      setShowCourseDialog(false);
+      setEditingKey(null);
+    } catch (error) {
+      console.error('Error updating key courses:', error);
+      toast.error("Fehler beim Aktualisieren der Kurszuweisung");
+    }
+  };
+
   const getKeyStatus = (key) => {
     if (!key.is_active) return { status: 'Deaktiviert', color: 'bg-red-100 text-red-800' };
     
@@ -962,6 +1001,15 @@ const AccessKeysTab = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const getAssignedCourses = (courseIds) => {
+    if (!courseIds || courseIds.length === 0) return 'Alle Kurse';
+    
+    const assignedCourses = courses.filter(course => courseIds.includes(course.id));
+    if (assignedCourses.length === 0) return 'Keine Kurse';
+    
+    return assignedCourses.map(course => course.title).join(', ');
   };
 
   if (loading) {
@@ -1095,10 +1143,10 @@ const AccessKeysTab = () => {
                       <tr className="border-b">
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Access-Key</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Status</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-600">Zugewiesene Kurse</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Nutzung</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Erstellt</th>
                         <th className="text-left py-3 px-4 font-medium text-gray-600">Gültig bis</th>
-                        <th className="text-left py-3 px-4 font-medium text-gray-600">Ersteller</th>
                         <th className="text-right py-3 px-4 font-medium text-gray-600">Aktionen</th>
                       </tr>
                     </thead>
@@ -1117,6 +1165,7 @@ const AccessKeysTab = () => {
                                   size="sm"
                                   onClick={() => copyToClipboard(key.key)}
                                   className="p-1"
+                                  title="In Zwischenablage kopieren"
                                 >
                                   📋
                                 </Button>
@@ -1127,6 +1176,19 @@ const AccessKeysTab = () => {
                               <Badge className={keyStatus.color}>
                                 {keyStatus.status}
                               </Badge>
+                            </td>
+
+                            <td className="py-3 px-4">
+                              <div className="max-w-xs">
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {getAssignedCourses(key.course_ids)}
+                                </p>
+                                {key.course_ids && key.course_ids.length > 0 && (
+                                  <Badge variant="outline" className="mt-1">
+                                    {key.course_ids.length} Kurs{key.course_ids.length !== 1 ? 'e' : ''}
+                                  </Badge>
+                                )}
+                              </div>
                             </td>
                             
                             <td className="py-3 px-4">
@@ -1148,19 +1210,24 @@ const AccessKeysTab = () => {
                               </span>
                             </td>
                             
-                            <td className="py-3 px-4">
-                              <span className="text-sm text-gray-600">
-                                {key.created_by || 'System'}
-                              </span>
-                            </td>
-                            
                             <td className="py-3 px-4 text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  onClick={() => handleManageCourses(key)}
+                                  className="text-blue-600 hover:text-blue-700"
+                                  title="Kurse verwalten"
+                                >
+                                  <BookOpen className="w-4 h-4" />
+                                </Button>
+                                
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
                                   onClick={() => toggleKeyStatus(key.id, key.is_active)}
                                   className={key.is_active ? "text-orange-600" : "text-green-600"}
+                                  title={key.is_active ? "Deaktivieren" : "Aktivieren"}
                                 >
                                   {key.is_active ? '⏸️' : '▶️'}
                                 </Button>
@@ -1170,6 +1237,7 @@ const AccessKeysTab = () => {
                                   size="sm"
                                   onClick={() => deleteKey(key.id)}
                                   className="text-red-600 hover:text-red-700"
+                                  title="Löschen"
                                 >
                                   🗑️
                                 </Button>
@@ -1277,6 +1345,19 @@ const AccessKeysTab = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {/* Course Assignment Dialog */}
+      {showCourseDialog && editingKey && (
+        <CourseAssignmentDialog 
+          accessKey={editingKey}
+          courses={courses}
+          onSave={updateKeyCourses}
+          onClose={() => {
+            setShowCourseDialog(false);
+            setEditingKey(null);
+          }}
+        />
       )}
     </div>
   );
