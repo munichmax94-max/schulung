@@ -592,18 +592,27 @@ async def send_access_keys_email(
 
 @api_router.post("/admin/send-single-key")
 async def send_single_access_key(
-    email_request: EmailRequest,
+    request: dict,
     current_admin: Admin = Depends(get_current_admin)
 ):
     """Generate and send a single access key via email (Admin only)"""
     try:
+        email_request = EmailRequest(
+            email=request.get("email"),
+            name=request.get("name", "")
+        )
+        
+        expires_at = None
+        if request.get("expires_days"):
+            expires_at = datetime.now(timezone.utc) + timedelta(days=request.get("expires_days"))
+        
         # Generate key
         key = generate_access_key()
         access_key = AccessKey(
             key=key,
-            expires_at=None,  # Default no expiry for now
-            max_usage=None,   # Default unlimited usage
-            course_ids=[],    # Default no course restrictions
+            expires_at=expires_at,
+            max_usage=request.get("max_usage"),
+            course_ids=request.get("course_ids", []),
             created_by=current_admin.email
         )
         
