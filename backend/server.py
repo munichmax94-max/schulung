@@ -583,6 +583,30 @@ async def get_access_keys(current_admin: Admin = Depends(get_current_admin)):
             detail="Fehler beim Laden der Access-Keys"
         )
 
+@api_router.get("/debug/create-admin")
+async def debug_create_admin():
+    """Debug endpoint to create admin user"""
+    try:
+        # Check if admin exists
+        admin = await db.admins.find_one({"email": "admin@schulungsportal.de"})
+        if admin:
+            return {"message": "Admin already exists", "admin_email": "admin@schulungsportal.de"}
+        
+        # Create admin
+        default_admin = Admin(
+            email="admin@schulungsportal.de",
+            password_hash=hash_password("admin123"),
+            name="Administrator"
+        )
+        admin_dict = default_admin.dict()
+        admin_dict["created_at"] = admin_dict["created_at"].isoformat()
+        
+        await db.admins.insert_one(admin_dict)
+        return {"message": "Admin created successfully", "admin_email": "admin@schulungsportal.de", "password": "admin123"}
+        
+    except Exception as e:
+        return {"error": str(e)}
+
 # Include the router in the main app
 app.include_router(api_router)
 
