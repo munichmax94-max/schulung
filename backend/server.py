@@ -46,80 +46,6 @@ SECRET_KEY = os.environ.get("SECRET_KEY", "schulungsportal-secret-key-change-in-
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Models
-class AccessKeyCreate(BaseModel):
-    access_key: str
-
-class AccessKeyValidation(BaseModel):
-    success: bool
-    message: str
-    token: Optional[str] = None
-
-class User(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    session_token: Optional[str] = None
-    access_key: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    last_login: Optional[datetime] = None
-
-class AccessKey(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    key: str
-    is_active: bool = True
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    expires_at: Optional[datetime] = None
-    usage_count: int = 0
-    max_usage: Optional[int] = None
-    course_ids: List[str] = []
-    created_by: Optional[str] = None
-
-class Course(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    title: str
-    description: str
-    content: str = ""
-    is_published: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    modules: List[dict] = []
-
-class Admin(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    email: EmailStr
-    password_hash: str
-    name: str
-    is_active: bool = True
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class AdminLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class AdminCreate(BaseModel):
-    email: EmailStr
-    password: str
-    name: str
-
-class EmailRequest(BaseModel):
-    email: EmailStr
-    name: Optional[str] = ""
-
-class BulkEmailRequest(BaseModel):
-    recipients: List[EmailRequest]
-    count: Optional[int] = None
-    expires_days: Optional[int] = None
-    max_usage: Optional[int] = None
-    course_ids: List[str] = []
-
-class UserProgress(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    user_access_key: str
-    course_id: str
-    module_id: Optional[str] = None
-    progress_percentage: float = 0.0
-    completed: bool = False
-    last_accessed: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
 # Utility functions
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -183,7 +109,7 @@ async def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(
 
 @api_router.get("/")
 async def root():
-    return {"message": "Schulungsportal API", "version": "1.0"}
+    return {"message": "Schulungsportal API", "version": "2.0"}
 
 # Access Key Validation
 @api_router.post("/validate-key", response_model=AccessKeyValidation)
@@ -270,17 +196,15 @@ async def get_user_courses(current_user: str = Depends(get_current_user)):
         
         access_key = AccessKey(**access_key_doc)
         
-        # Get courses assigned to this access key
+        # Get published courses assigned to this access key
         if access_key.course_ids:
-            courses = await db.courses.find({
-                "id": {"$in": access_key.course_ids},
-                "is_published": True
-            }).to_list(length=None)
+            courses = await course_service.get_courses(status=CourseStatus.published)
+            # Filter courses by assigned IDs
+            filtered_courses = [c for c in courses if c.id in access_key.course_ids]
+            return filtered_courses
         else:
             # If no specific courses assigned, show all published courses
-            courses = await db.courses.find({"is_published": True}).to_list(length=None)
-        
-        return [Course(**course) for course in courses]
+            return await course_service.get_courses(status=CourseStatus.published)
         
     except HTTPException:
         raise
@@ -295,8 +219,8 @@ async def get_user_courses(current_user: str = Depends(get_current_user)):
 async def get_course_detail(course_id: str, current_user: str = Depends(get_current_user)):
     """Get detailed course information"""
     try:
-        course = await db.courses.find_one({"id": course_id, "is_published": True})
-        if not course:
+        course = await course_service.get_course(course_id)
+        if not course or course.status != CourseStatus.published:
             raise HTTPException(status_code=404, detail="Kurs nicht gefunden")
         
         # Check if user has access to this course
@@ -306,7 +230,7 @@ async def get_course_detail(course_id: str, current_user: str = Depends(get_curr
             if access_key.course_ids and course_id not in access_key.course_ids:
                 raise HTTPException(status_code=403, detail="Kein Zugriff auf diesen Kurs")
         
-        return Course(**course)
+        return course
         
     except HTTPException:
         raise
@@ -315,6 +239,54 @@ async def get_course_detail(course_id: str, current_user: str = Depends(get_curr
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Fehler beim Laden des Kurses"
+        )
+
+@api_router.get("/courses/{course_id}/progress")
+async def get_course_progress(course_id: str, current_user: str = Depends(get_current_user)):
+    """Get user's progress for a course"""
+    try:
+        progress = await course_service.get_user_course_progress(current_user, course_id)
+        return progress
+    except Exception as e:
+        logging.error(f"Error getting course progress: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Laden des Fortschritts"
+        )
+
+@api_router.post("/courses/{course_id}/modules/{module_id}/complete")
+async def complete_module(course_id: str, module_id: str, current_user: str = Depends(get_current_user)):
+    """Mark a module as completed"""
+    try:
+        success = await course_service.update_module_progress(current_user, course_id, module_id, True)
+        if success:
+            return {"message": "Modul erfolgreich abgeschlossen"}
+        else:
+            raise HTTPException(status_code=400, detail="Fehler beim Aktualisieren des Fortschritts")
+    except Exception as e:
+        logging.error(f"Error completing module: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Abschließen des Moduls"
+        )
+
+@api_router.post("/courses/{course_id}/modules/{module_id}/quiz/{quiz_id}/submit")
+async def submit_quiz(
+    course_id: str, 
+    module_id: str, 
+    quiz_id: str, 
+    answers: List[Dict[str, Any]], 
+    current_user: str = Depends(get_current_user)
+):
+    """Submit quiz answers"""
+    try:
+        result = await course_service.submit_quiz(current_user, course_id, module_id, quiz_id, answers)
+        return result
+    except Exception as e:
+        logging.error(f"Error submitting quiz: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Einreichen des Quiz"
         )
 
 # Admin Routes
@@ -359,17 +331,13 @@ async def admin_login(login_data: AdminLogin):
             detail="Fehler beim Admin-Login"
         )
 
+# Enhanced Course Management Routes
 @api_router.post("/admin/courses", response_model=Course)
-async def create_course(course: Course, current_admin: Admin = Depends(get_current_admin)):
+async def create_course(course: CourseCreate, current_admin: Admin = Depends(get_current_admin)):
     """Create a new course (Admin only)"""
     try:
-        course_dict = course.dict()
-        course_dict["created_at"] = course_dict["created_at"].isoformat()
-        course_dict["updated_at"] = course_dict["updated_at"].isoformat()
-        
-        await db.courses.insert_one(course_dict)
-        return course
-        
+        new_course = await course_service.create_course(course, current_admin.email)
+        return new_course
     except Exception as e:
         logging.error(f"Error creating course: {str(e)}")
         raise HTTPException(
@@ -378,12 +346,14 @@ async def create_course(course: Course, current_admin: Admin = Depends(get_curre
         )
 
 @api_router.get("/admin/courses", response_model=List[Course])
-async def get_all_courses(current_admin: Admin = Depends(get_current_admin)):
+async def get_all_courses(
+    status: Optional[CourseStatus] = None, 
+    current_admin: Admin = Depends(get_current_admin)
+):
     """Get all courses (Admin only)"""
     try:
-        courses = await db.courses.find().to_list(length=None)
-        return [Course(**course) for course in courses]
-        
+        courses = await course_service.get_courses(status=status)
+        return courses
     except Exception as e:
         logging.error(f"Error getting admin courses: {str(e)}")
         raise HTTPException(
@@ -391,60 +361,164 @@ async def get_all_courses(current_admin: Admin = Depends(get_current_admin)):
             detail="Fehler beim Laden der Kurse"
         )
 
-@api_router.post("/admin/access-keys")
-async def generate_access_keys(
-    count: int = 1,
-    expires_days: Optional[int] = None,
-    max_usage: Optional[int] = None,
-    course_ids: List[str] = [],
-    current_admin: Admin = Depends(get_current_admin)
-):
-    """Generate new access keys (Admin only)"""
+@api_router.get("/admin/courses/{course_id}", response_model=Course)
+async def get_admin_course(course_id: str, current_admin: Admin = Depends(get_current_admin)):
+    """Get a specific course for editing (Admin only)"""
     try:
-        if count > 100:  # Limit batch generation
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Maximal 100 Keys auf einmal generierbar"
-            )
-        
-        expires_at = None
-        if expires_days:
-            expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
-        
-        generated_keys = []
-        for _ in range(count):
-            key = generate_access_key()
-            access_key = AccessKey(
-                key=key,
-                expires_at=expires_at,
-                max_usage=max_usage,
-                course_ids=course_ids,
-                created_by=current_admin.email
-            )
-            
-            access_key_dict = access_key.dict()
-            access_key_dict["created_at"] = access_key_dict["created_at"].isoformat()
-            if access_key_dict["expires_at"]:
-                access_key_dict["expires_at"] = access_key_dict["expires_at"].isoformat()
-            
-            await db.access_keys.insert_one(access_key_dict)
-            generated_keys.append(key)
-        
-        return {
-            "success": True,
-            "message": f"{count} Access-Keys erfolgreich generiert",
-            "keys": generated_keys
-        }
-        
-    except HTTPException:
-        raise
+        course = await course_service.get_course(course_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="Kurs nicht gefunden")
+        return course
     except Exception as e:
-        logging.error(f"Error generating access keys: {str(e)}")
+        logging.error(f"Error getting admin course: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Fehler beim Generieren der Access-Keys"
+            detail="Fehler beim Laden des Kurses"
         )
 
+@api_router.put("/admin/courses/{course_id}", response_model=Course)
+async def update_course(
+    course_id: str, 
+    course_update: CourseUpdate, 
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Update a course (Admin only)"""
+    try:
+        updated_course = await course_service.update_course(course_id, course_update)
+        if not updated_course:
+            raise HTTPException(status_code=404, detail="Kurs nicht gefunden")
+        return updated_course
+    except Exception as e:
+        logging.error(f"Error updating course: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Aktualisieren des Kurses"
+        )
+
+@api_router.delete("/admin/courses/{course_id}")
+async def delete_course(course_id: str, current_admin: Admin = Depends(get_current_admin)):
+    """Delete a course (Admin only)"""
+    try:
+        success = await course_service.delete_course(course_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Kurs nicht gefunden")
+        return {"message": "Kurs erfolgreich gelöscht"}
+    except Exception as e:
+        logging.error(f"Error deleting course: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Löschen des Kurses"
+        )
+
+@api_router.post("/admin/courses/{course_id}/publish")
+async def publish_course(course_id: str, current_admin: Admin = Depends(get_current_admin)):
+    """Publish a course (Admin only)"""
+    try:
+        course = await course_service.publish_course(course_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="Kurs nicht gefunden")
+        return {"message": "Kurs erfolgreich veröffentlicht", "course": course}
+    except Exception as e:
+        logging.error(f"Error publishing course: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Veröffentlichen des Kurses"
+        )
+
+@api_router.post("/admin/courses/{course_id}/unpublish")
+async def unpublish_course(course_id: str, current_admin: Admin = Depends(get_current_admin)):
+    """Unpublish a course (Admin only)"""
+    try:
+        course = await course_service.unpublish_course(course_id)
+        if not course:
+            raise HTTPException(status_code=404, detail="Kurs nicht gefunden")
+        return {"message": "Kurs als Entwurf gesetzt", "course": course}
+    except Exception as e:
+        logging.error(f"Error unpublishing course: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Entveröffentlichen des Kurses"
+        )
+
+# Module Management Routes
+@api_router.post("/admin/courses/{course_id}/modules", response_model=CourseModule)
+async def add_module(
+    course_id: str, 
+    module: ModuleCreate, 
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Add a module to a course (Admin only)"""
+    try:
+        new_module = await course_service.add_module(course_id, module)
+        if not new_module:
+            raise HTTPException(status_code=404, detail="Kurs nicht gefunden")
+        return new_module
+    except Exception as e:
+        logging.error(f"Error adding module: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Hinzufügen des Moduls"
+        )
+
+@api_router.put("/admin/courses/{course_id}/modules/{module_id}")
+async def update_module(
+    course_id: str,
+    module_id: str,
+    module_update: ModuleUpdate,
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Update a module (Admin only)"""
+    try:
+        success = await course_service.update_module(course_id, module_id, module_update)
+        if not success:
+            raise HTTPException(status_code=404, detail="Modul nicht gefunden")
+        return {"message": "Modul erfolgreich aktualisiert"}
+    except Exception as e:
+        logging.error(f"Error updating module: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Aktualisieren des Moduls"
+        )
+
+@api_router.delete("/admin/courses/{course_id}/modules/{module_id}")
+async def delete_module(
+    course_id: str,
+    module_id: str,
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Delete a module (Admin only)"""
+    try:
+        success = await course_service.delete_module(course_id, module_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Modul nicht gefunden")
+        return {"message": "Modul erfolgreich gelöscht"}
+    except Exception as e:
+        logging.error(f"Error deleting module: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Löschen des Moduls"
+        )
+
+@api_router.post("/admin/courses/{course_id}/modules/reorder")
+async def reorder_modules(
+    course_id: str,
+    module_orders: List[Dict[str, Any]],
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Reorder modules in a course (Admin only)"""
+    try:
+        success = await course_service.reorder_modules(course_id, module_orders)
+        if not success:
+            raise HTTPException(status_code=404, detail="Kurs nicht gefunden")
+        return {"message": "Module erfolgreich neu angeordnet"}
+    except Exception as e:
+        logging.error(f"Error reordering modules: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Neuanordnen der Module"
+        )
+
+# Email Routes
 @api_router.post("/admin/send-access-keys")
 async def send_access_keys_email(
     request: BulkEmailRequest,
@@ -458,7 +532,6 @@ async def send_access_keys_email(
                 detail="Maximal 50 E-Mails auf einmal versendbar"
             )
         
-        # Calculate count if not provided
         count = request.count or len(request.recipients)
         
         if count != len(request.recipients):
@@ -585,6 +658,7 @@ async def get_access_keys(current_admin: Admin = Depends(get_current_admin)):
             detail="Fehler beim Laden der Access-Keys"
         )
 
+# Debug Routes
 @api_router.get("/debug/reset-admin")
 async def debug_reset_admin():
     """Debug endpoint to reset admin password"""
@@ -687,21 +761,86 @@ async def create_default_admin():
             await db.access_keys.insert_one(key_dict)
             logger.info("Test access key created: TEST-KEY-123")
             
-        # Create sample course
+        # Create enhanced sample course
         course_count = await db.courses.count_documents({})
         if course_count == 0:
             sample_course = Course(
                 title="Beispielkurs: Grundlagen der Schulung",
-                description="Ein Beispielkurs um das System zu testen",
-                content="# Willkommen zum Beispielkurs\n\nDies ist ein Beispielkurs um die Funktionalität des Schulungsportals zu demonstrieren.",
-                is_published=True
+                description="Ein umfassender Beispielkurs um das erweiterte System zu demonstrieren",
+                short_description="Lernen Sie die Grundlagen effektiver Schulungen",
+                content="""# Willkommen zum Beispielkurs
+
+Dieser Kurs demonstriert die erweiterten Funktionen des Schulungsportals mit:
+- Rich-Text-Inhalten
+- Interaktiven Modulen  
+- Quiz-Systemen
+- Fortschrittsverfolgung
+
+Viel Erfolg beim Lernen!""",
+                status=CourseStatus.published,
+                tags=["grundlagen", "schulung", "demo"],
+                category="Grundlagen",
+                difficulty_level="beginner",
+                estimated_duration_hours=2.0,
+                modules=[
+                    CourseModule(
+                        title="Einführung",
+                        description="Grundlagen der Schulung",
+                        type=ModuleType.text,
+                        content=ModuleContent(
+                            text_content="""<h2>Herzlich Willkommen!</h2>
+<p>In diesem ersten Modul lernen Sie die <strong>Grundlagen effektiver Schulungen</strong> kennen.</p>
+<p>Wir behandeln:</p>
+<ul>
+<li>Lernziele definieren</li>
+<li>Zielgruppen verstehen</li>
+<li>Inhalte strukturieren</li>
+</ul>
+<p>Lassen Sie uns beginnen!</p>"""
+                        ),
+                        order=0,
+                        estimated_duration_minutes=30
+                    ),
+                    CourseModule(
+                        title="Wissenstest",
+                        description="Testen Sie Ihr Wissen",
+                        type=ModuleType.quiz,
+                        content=ModuleContent(
+                            quiz=Quiz(
+                                title="Grundlagen Quiz",
+                                description="Überprüfen Sie Ihr Verständnis der Grundlagen",
+                                questions=[
+                                    QuizQuestion(
+                                        question="Was ist der erste Schritt bei der Schulungsplanung?",
+                                        type=QuestionType.single_choice,
+                                        options=[
+                                            QuizOption(text="Lernziele definieren", is_correct=True),
+                                            QuizOption(text="Material sammeln", is_correct=False),
+                                            QuizOption(text="Termine festlegen", is_correct=False)
+                                        ],
+                                        explanation="Lernziele bilden die Grundlage für alle weiteren Planungsschritte."
+                                    )
+                                ],
+                                passing_score=70
+                            )
+                        ),
+                        order=1,
+                        estimated_duration_minutes=15
+                    )
+                ]
             )
-            course_dict = sample_course.dict()
+            
+            course_dict = course.dict()
             course_dict["created_at"] = course_dict["created_at"].isoformat()
             course_dict["updated_at"] = course_dict["updated_at"].isoformat()
             
+            # Convert module dates
+            for module in course_dict["modules"]:
+                module["created_at"] = module["created_at"]
+                module["updated_at"] = module["updated_at"] 
+            
             await db.courses.insert_one(course_dict)
-            logger.info("Sample course created")
+            logger.info("Enhanced sample course created")
             
     except Exception as e:
         logger.error(f"Error during startup initialization: {str(e)}")
