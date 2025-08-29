@@ -8,8 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./com
 import { Badge } from "./components/ui/badge";
 import { Separator } from "./components/ui/separator";
 import { Alert, AlertDescription } from "./components/ui/alert";
+import { Textarea } from "./components/ui/textarea";
+import { Label } from "./components/ui/label";
 import { toast } from "sonner";
-import { BookOpen, Key, User, Lock, Settings, LogOut, CheckCircle } from "lucide-react";
+import { BookOpen, Key, User, Lock, Settings, LogOut, CheckCircle, Mail, Plus, Send, Users } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
