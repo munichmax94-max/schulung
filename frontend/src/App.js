@@ -11,7 +11,7 @@ import { Alert, AlertDescription } from "./components/ui/alert";
 import { Textarea } from "./components/ui/textarea";
 import { Label } from "./components/ui/label";
 import { toast } from "sonner";
-import { BookOpen, Key, User, Lock, Settings, LogOut, CheckCircle, Mail, Plus, Send, Users, Edit, Trash2, Eye, FileText, X } from "lucide-react";
+import { BookOpen, Key, User, Lock, Settings, LogOut, CheckCircle, Mail, Plus, Send, Users, Edit, Trash2, Eye, FileText, X, HelpCircle } from "lucide-react";
 import CourseEditor from "./components/CourseEditor";
 import QuizRunner from "./components/QuizRunner";
 
