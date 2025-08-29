@@ -81,6 +81,7 @@ class EmailService:
             
         except Exception as e:
             logger.error(f"Failed to send email to {to_email}: {str(e)}")
+            print(f"DEBUG: Email error for {to_email}: {str(e)}")  # Debug output
             return False
     
     def send_access_key_email(self, to_email: str, access_key: str, recipient_name: str = "") -> bool:
