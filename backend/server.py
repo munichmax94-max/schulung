@@ -436,6 +436,139 @@ async def generate_access_keys(
             detail="Fehler beim Generieren der Access-Keys"
         )
 
+@api_router.post("/admin/send-access-keys")
+async def send_access_keys_email(
+    request: BulkEmailRequest,
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Generate and send access keys via email (Admin only)"""
+    try:
+        if len(request.recipients) > 50:  # Limit bulk generation
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Maximal 50 E-Mails auf einmal versendbar"
+            )
+        
+        # Calculate count if not provided
+        count = request.count or len(request.recipients)
+        
+        if count != len(request.recipients):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Anzahl der Keys muss mit Anzahl der Empfänger übereinstimmen"
+            )
+        
+        expires_at = None
+        if request.expires_days:
+            expires_at = datetime.now(timezone.utc) + timedelta(days=request.expires_days)
+        
+        generated_keys = []
+        recipients_data = []
+        
+        # Generate keys and store in database
+        for recipient in request.recipients:
+            key = generate_access_key()
+            access_key = AccessKey(
+                key=key,
+                expires_at=expires_at,
+                max_usage=request.max_usage,
+                course_ids=request.course_ids,
+                created_by=current_admin.email
+            )
+            
+            access_key_dict = access_key.dict()
+            access_key_dict["created_at"] = access_key_dict["created_at"].isoformat()
+            if access_key_dict["expires_at"]:
+                access_key_dict["expires_at"] = access_key_dict["expires_at"].isoformat()
+            
+            await db.access_keys.insert_one(access_key_dict)
+            
+            generated_keys.append(key)
+            recipients_data.append({
+                "email": recipient.email,
+                "name": recipient.name or ""
+            })
+        
+        # Send emails
+        email_results = email_service.send_bulk_access_keys(recipients_data, generated_keys)
+        
+        return {
+            "success": True,
+            "message": f"Access-Keys erfolgreich generiert und versendet",
+            "email_results": email_results,
+            "generated_keys_count": len(generated_keys)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error sending access key emails: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Versenden der Access-Key E-Mails"
+        )
+
+@api_router.post("/admin/send-single-key")
+async def send_single_access_key(
+    request: EmailRequest,
+    expires_days: Optional[int] = None,
+    max_usage: Optional[int] = None,
+    course_ids: List[str] = [],
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Generate and send a single access key via email (Admin only)"""
+    try:
+        expires_at = None
+        if expires_days:
+            expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
+        
+        # Generate key
+        key = generate_access_key()
+        access_key = AccessKey(
+            key=key,
+            expires_at=expires_at,
+            max_usage=max_usage,
+            course_ids=course_ids,
+            created_by=current_admin.email
+        )
+        
+        access_key_dict = access_key.dict()
+        access_key_dict["created_at"] = access_key_dict["created_at"].isoformat()
+        if access_key_dict["expires_at"]:
+            access_key_dict["expires_at"] = access_key_dict["expires_at"].isoformat()
+        
+        await db.access_keys.insert_one(access_key_dict)
+        
+        # Send email
+        success = email_service.send_access_key_email(
+            request.email, 
+            key, 
+            request.name or ""
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "message": f"Access-Key erfolgreich an {request.email} versendet",
+                "access_key": key
+            }
+        else:
+            # Key was created but email failed - we could delete it here
+            await db.access_keys.delete_one({"key": key})
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Access-Key generiert, aber E-Mail-Versendung fehlgeschlagen"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error sending single access key email: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Generieren und Versenden des Access-Keys"
+        )
+
 @api_router.get("/admin/access-keys")
 async def get_access_keys(current_admin: Admin = Depends(get_current_admin)):
     """Get all access keys (Admin only)"""
