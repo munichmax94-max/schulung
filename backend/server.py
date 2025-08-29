@@ -975,7 +975,7 @@ Viel Erfolg beim Lernen!""",
                 ]
             )
             
-            course_dict = course.dict()
+            course_dict = sample_course.dict()
             course_dict["created_at"] = course_dict["created_at"].isoformat()
             course_dict["updated_at"] = course_dict["updated_at"].isoformat()
             
