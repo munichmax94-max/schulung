@@ -1,53 +1,699 @@
-import { useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { Button } from "./components/ui/button";
+import { Input } from "./components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
+import { Badge } from "./components/ui/badge";
+import { Separator } from "./components/ui/separator";
+import { Alert, AlertDescription } from "./components/ui/alert";
+import { toast } from "sonner";
+import { BookOpen, Key, User, Lock, Settings, LogOut, CheckCircle } from "lucide-react";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const Home = () => {
-  const helloWorldApi = async () => {
+// Auth Context
+const AuthContext = React.createContext();
+
+const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [admin, setAdmin] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Check for existing tokens
+    const userToken = localStorage.getItem('userToken');
+    const adminToken = localStorage.getItem('adminToken');
+    
+    if (userToken) {
+      setUser({ token: userToken });
+    }
+    
+    if (adminToken) {
+      const adminData = localStorage.getItem('adminData');
+      setAdmin({ 
+        token: adminToken, 
+        ...JSON.parse(adminData || '{}') 
+      });
+    }
+    
+    setLoading(false);
+  }, []);
+
+  const loginUser = (token) => {
+    localStorage.setItem('userToken', token);
+    setUser({ token });
+  };
+
+  const loginAdmin = (token, adminData) => {
+    localStorage.setItem('adminToken', token);
+    localStorage.setItem('adminData', JSON.stringify(adminData));
+    setAdmin({ token, ...adminData });
+  };
+
+  const logoutUser = () => {
+    localStorage.removeItem('userToken');
+    setUser(null);
+  };
+
+  const logoutAdmin = () => {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminData');
+    setAdmin(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{
+      user, admin, loading, 
+      loginUser, loginAdmin, 
+      logoutUser, logoutAdmin
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+const useAuth = () => {
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+// Components
+const LandingPage = () => {
+  const [accessKey, setAccessKey] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { loginUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!accessKey.trim()) {
+      setError("Bitte geben Sie einen Access-Key ein");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
     try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
+      const response = await axios.post(`${API}/validate-key`, {
+        access_key: accessKey.trim()
+      });
+
+      if (response.data.success) {
+        loginUser(response.data.token);
+        toast.success("Access-Key erfolgreich validiert!");
+        navigate('/kurse');
+      } else {
+        setError(response.data.message);
+      }
+    } catch (err) {
+      setError("Fehler bei der Validierung des Access-Keys");
+      console.error('Validation error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
   return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl mb-6 shadow-lg">
+            <BookOpen className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Schulungsportal</h1>
+          <p className="text-gray-600">Geben Sie Ihren Access-Key ein, um auf die Schulungen zuzugreifen</p>
+        </div>
+
+        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="flex items-center justify-center gap-2 text-xl">
+              <Key className="w-5 h-5 text-emerald-600" />
+              Access-Key Eingabe
+            </CardTitle>
+            <CardDescription>
+              Verwenden Sie den Ihnen zugesendeten Access-Key
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Input
+                  type="text"
+                  placeholder="Ihren Access-Key eingeben..."
+                  value={accessKey}
+                  onChange={(e) => setAccessKey(e.target.value)}
+                  className="text-center font-mono tracking-wider h-12"
+                  disabled={loading}
+                />
+              </div>
+
+              {error && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertDescription className="text-red-800">
+                    {error}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold shadow-lg transition-all duration-200"
+                disabled={loading}
+              >
+                {loading ? "Validierung läuft..." : "Zugriff freischalten"}
+              </Button>
+            </form>
+
+            <Separator className="my-6" />
+
+            <div className="text-center">
+              <p className="text-sm text-gray-600 mb-2">
+                Sind Sie Administrator?
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate('/admin')}
+                className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Admin-Bereich
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
 
+const CourseList = () => {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user, logoutUser } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
+  const fetchCourses = async () => {
+    try {
+      const response = await axios.get(`${API}/courses`, {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      });
+      setCourses(response.data);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      if (error.response?.status === 401) {
+        logoutUser();
+        navigate('/');
+      }
+      toast.error("Fehler beim Laden der Kurse");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    navigate('/');
+    toast.success("Erfolgreich abgemeldet");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-600">Kurse werden geladen...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">Schulungsportal</h1>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={handleLogout}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Abmelden
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Verfügbare Schulungen</h2>
+          <p className="text-gray-600">Wählen Sie eine Schulung aus, um zu beginnen</p>
+        </div>
+
+        {courses.length === 0 ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Keine Kurse verfügbar
+              </h3>
+              <p className="text-gray-600">
+                Derzeit sind keine Kurse für Ihren Access-Key freigeschaltet.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {courses.map((course) => (
+              <Card 
+                key={course.id} 
+                className="hover:shadow-lg transition-all duration-200 cursor-pointer bg-white/80 backdrop-blur-sm"
+                onClick={() => navigate(`/kurse/${course.id}`)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg line-clamp-2">
+                    {course.title}
+                  </CardTitle>
+                  <CardDescription className="line-clamp-3">
+                    {course.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Verfügbar
+                    </Badge>
+                    <Button variant="outline" size="sm">
+                      Öffnen
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+const CourseDetail = () => {
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const courseId = window.location.pathname.split('/').pop();
+
+  useEffect(() => {
+    fetchCourse();
+  }, [courseId]);
+
+  const fetchCourse = async () => {
+    try {
+      const response = await axios.get(`${API}/courses/${courseId}`, {
+        headers: {
+          Authorization: `Bearer ${user.token}`
+        }
+      });
+      setCourse(response.data);
+    } catch (error) {
+      console.error('Error fetching course:', error);
+      if (error.response?.status === 404) {
+        toast.error("Kurs nicht gefunden");
+        navigate('/kurse');
+      } else if (error.response?.status === 401) {
+        toast.error("Sitzung abgelaufen");
+        navigate('/');
+      } else {
+        toast.error("Fehler beim Laden des Kurses");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mb-4"></div>
+          <p className="text-gray-600">Kurs wird geladen...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!course) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex items-center justify-center">
+        <Card className="text-center p-8">
+          <CardContent>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Kurs nicht gefunden</h2>
+            <Button onClick={() => navigate('/kurse')}>
+              Zurück zur Übersicht
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center h-16">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate('/kurse')}
+              className="mr-4"
+            >
+              ← Zurück
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                <BookOpen className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">{course.title}</h1>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <Card className="bg-white/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl">{course.title}</CardTitle>
+            <CardDescription className="text-lg">
+              {course.description}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-emerald max-w-none">
+              {course.content ? (
+                <div dangerouslySetInnerHTML={{ __html: course.content.replace(/\n/g, '<br>') }} />
+              ) : (
+                <p className="text-gray-600 italic">
+                  Kursinhalt wird derzeit vorbereitet...
+                </p>
+              )}
+            </div>
+
+            {course.modules && course.modules.length > 0 && (
+              <div className="mt-8">
+                <h3 className="text-lg font-semibold mb-4">Kursmodule</h3>
+                <div className="space-y-2">
+                  {course.modules.map((module, index) => (
+                    <Card key={index} className="p-4">
+                      <h4 className="font-medium">{module.title}</h4>
+                      <p className="text-sm text-gray-600">{module.description}</p>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+};
+
+const AdminLogin = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { loginAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await axios.post(`${API}/admin/login`, {
+        email,
+        password
+      });
+
+      loginAdmin(response.data.access_token, response.data.admin);
+      toast.success("Erfolgreich angemeldet!");
+      navigate('/admin/dashboard');
+    } catch (err) {
+      setError("Ungültige E-Mail oder Passwort");
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-slate-600 to-gray-700 rounded-2xl mb-6 shadow-lg">
+            <Lock className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Administrator</h1>
+          <p className="text-gray-600">Melden Sie sich mit Ihren Admin-Zugangsdaten an</p>
+        </div>
+
+        <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
+          <CardHeader className="text-center pb-6">
+            <CardTitle className="flex items-center justify-center gap-2 text-xl">
+              <User className="w-5 h-5 text-slate-600" />
+              Admin Login
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="E-Mail-Adresse"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="Passwort"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              {error && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertDescription className="text-red-800">
+                    {error}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Button 
+                type="submit" 
+                className="w-full h-12 bg-gradient-to-r from-slate-600 to-gray-700 hover:from-slate-700 hover:to-gray-800 text-white font-semibold shadow-lg transition-all duration-200"
+                disabled={loading}
+              >
+                {loading ? "Anmeldung läuft..." : "Anmelden"}
+              </Button>
+            </form>
+
+            <Separator className="my-6" />
+
+            <div className="text-center">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => navigate('/')}
+                className="text-gray-600 border-gray-200 hover:bg-gray-50"
+              >
+                Zurück zur Startseite
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const AdminDashboard = () => {
+  const { admin, logoutAdmin } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logoutAdmin();
+    navigate('/');
+    toast.success("Erfolgreich abgemeldet");
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-gray-50">
+      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-slate-600 to-gray-700 rounded-lg flex items-center justify-center">
+                <Settings className="w-5 h-5 text-white" />
+              </div>
+              <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-gray-600">Willkommen, {admin.name}</span>
+              <Button 
+                variant="outline" 
+                onClick={handleLogout}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Abmelden
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h2>
+          <p className="text-gray-600">Verwalten Sie Ihre Schulungen und Access-Keys</p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-emerald-600" />
+                Kurse verwalten
+              </CardTitle>
+              <CardDescription>
+                Erstellen und bearbeiten Sie Schulungsinhalte
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Key className="w-5 h-5 text-blue-600" />
+                Access-Keys
+              </CardTitle>
+              <CardDescription>
+                Generieren und verwalten Sie Access-Keys
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5 text-purple-600" />
+                Benutzer
+              </CardTitle>
+              <CardDescription>
+                Übersicht über registrierte Benutzer
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+// Protected Route Components
+const ProtectedRoute = ({ children, requireAdmin = false }) => {
+  const { user, admin, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-gray-200 border-t-gray-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (requireAdmin && !admin) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  if (!requireAdmin && !user) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+};
+
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <AuthProvider>
+      <div className="App">
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route 
+              path="/kurse" 
+              element={
+                <ProtectedRoute>
+                  <CourseList />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/kurse/:courseId" 
+              element={
+                <ProtectedRoute>
+                  <CourseDetail />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/dashboard" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              } 
+            />
+          </Routes>
+        </BrowserRouter>
+      </div>
+    </AuthProvider>
   );
 }
 
