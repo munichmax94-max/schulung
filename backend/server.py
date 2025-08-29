@@ -658,6 +658,142 @@ async def get_access_keys(current_admin: Admin = Depends(get_current_admin)):
             detail="Fehler beim Laden der Access-Keys"
         )
 
+@api_router.get("/admin/access-keys")
+async def get_access_keys(current_admin: Admin = Depends(get_current_admin)):
+    """Get all access keys (Admin only)"""
+    try:
+        keys = await db.access_keys.find().sort("created_at", -1).to_list(length=None)
+        return [AccessKey(**key) for key in keys]
+        
+    except Exception as e:
+        logging.error(f"Error getting access keys: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Laden der Access-Keys"
+        )
+
+@api_router.patch("/admin/access-keys/{key_id}")
+async def update_access_key_status(
+    key_id: str, 
+    update_data: dict,
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Update access key status (Admin only)"""
+    try:
+        result = await db.access_keys.update_one(
+            {"id": key_id},
+            {"$set": update_data}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=404, detail="Access-Key nicht gefunden")
+            
+        return {"message": "Access-Key erfolgreich aktualisiert"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error updating access key: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Aktualisieren des Access-Keys"
+        )
+
+@api_router.delete("/admin/access-keys/{key_id}")
+async def delete_access_key(
+    key_id: str,
+    current_admin: Admin = Depends(get_current_admin)
+):
+    """Delete access key (Admin only)"""
+    try:
+        result = await db.access_keys.delete_one({"id": key_id})
+        
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Access-Key nicht gefunden")
+            
+        return {"message": "Access-Key erfolgreich gelöscht"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error deleting access key: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Löschen des Access-Keys"
+        )
+
+@api_router.get("/admin/users")
+async def get_users(current_admin: Admin = Depends(get_current_admin)):
+    """Get all users (Admin only)"""
+    try:
+        users = await db.users.find().sort("last_login", -1).to_list(length=None)
+        return [User(**user) for user in users]
+        
+    except Exception as e:
+        logging.error(f"Error getting users: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Laden der Benutzer"
+        )
+
+@api_router.get("/admin/statistics")
+async def get_admin_statistics(current_admin: Admin = Depends(get_current_admin)):
+    """Get admin dashboard statistics"""
+    try:
+        # Access keys statistics
+        total_keys = await db.access_keys.count_documents({})
+        active_keys = await db.access_keys.count_documents({"is_active": True})
+        
+        # Users statistics  
+        total_users = await db.users.count_documents({})
+        
+        # Courses statistics
+        total_courses = await db.courses.count_documents({})
+        published_courses = await db.courses.count_documents({"status": "published"})
+        
+        # Usage statistics
+        total_usage = await db.access_keys.aggregate([
+            {"$group": {"_id": None, "total": {"$sum": "$usage_count"}}}
+        ]).to_list(1)
+        
+        total_usage_count = total_usage[0]["total"] if total_usage else 0
+        
+        # Recent activity (last 7 days)
+        week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        recent_keys = await db.access_keys.count_documents({
+            "created_at": {"$gte": week_ago.isoformat()}
+        })
+        
+        recent_users = await db.users.count_documents({
+            "last_login": {"$gte": week_ago.isoformat()}
+        })
+        
+        return {
+            "access_keys": {
+                "total": total_keys,
+                "active": active_keys,
+                "recent": recent_keys
+            },
+            "users": {
+                "total": total_users,
+                "recent_active": recent_users
+            },
+            "courses": {
+                "total": total_courses,
+                "published": published_courses
+            },
+            "usage": {
+                "total_usage": total_usage_count
+            }
+        }
+        
+    except Exception as e:
+        logging.error(f"Error getting statistics: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Fehler beim Laden der Statistiken"
+        )
+
 # Debug Routes
 @api_router.get("/debug/reset-admin")
 async def debug_reset_admin():
