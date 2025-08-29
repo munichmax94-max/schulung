@@ -556,6 +556,7 @@ const AdminLogin = () => {
 
 const AdminDashboard = () => {
   const { admin, logoutAdmin } = useAuth();
+  const [activeTab, setActiveTab] = useState("overview");
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -589,50 +590,407 @@ const AdminDashboard = () => {
         </div>
       </header>
 
+      {/* Navigation Tabs */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav className="flex space-x-8 pt-4 border-b border-gray-200">
+          {[
+            { id: "overview", label: "Übersicht", icon: Settings },
+            { id: "courses", label: "Kurse", icon: BookOpen },
+            { id: "keys", label: "Access-Keys", icon: Key },
+            { id: "email", label: "E-Mail Versendung", icon: Mail },
+            { id: "users", label: "Benutzer", icon: Users }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === tab.id
+                  ? "border-slate-600 text-slate-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              <tab.icon className="w-4 h-4" />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard</h2>
-          <p className="text-gray-600">Verwalten Sie Ihre Schulungen und Access-Keys</p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-emerald-600" />
-                Kurse verwalten
-              </CardTitle>
-              <CardDescription>
-                Erstellen und bearbeiten Sie Schulungsinhalte
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="w-5 h-5 text-blue-600" />
-                Access-Keys
-              </CardTitle>
-              <CardDescription>
-                Generieren und verwalten Sie Access-Keys
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5 text-purple-600" />
-                Benutzer
-              </CardTitle>
-              <CardDescription>
-                Übersicht über registrierte Benutzer
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
+        {activeTab === "overview" && <OverviewTab />}
+        {activeTab === "courses" && <CoursesTab />}
+        {activeTab === "keys" && <AccessKeysTab />}
+        {activeTab === "email" && <EmailTab />}
+        {activeTab === "users" && <UsersTab />}
       </main>
+    </div>
+  );
+};
+
+// Overview Tab Component
+const OverviewTab = () => {
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Dashboard Übersicht</h2>
+        <p className="text-gray-600">Verwalten Sie Ihre Schulungen und Access-Keys</p>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-emerald-600" />
+              Kurse verwalten
+            </CardTitle>
+            <CardDescription>
+              Erstellen und bearbeiten Sie Schulungsinhalte
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5 text-blue-600" />
+              Access-Keys
+            </CardTitle>
+            <CardDescription>
+              Generieren und verwalten Sie Access-Keys
+            </CardDescription>
+          </CardHeader>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow cursor-pointer bg-white/80">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-green-600" />
+              E-Mail Versendung
+            </CardTitle>
+            <CardDescription>
+              Senden Sie Access-Keys per E-Mail
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// Courses Tab Component
+const CoursesTab = () => {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Kursverwaltung</h2>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Kursverwaltung in Entwicklung</h3>
+          <p className="text-gray-600">
+            Die erweiterte Kursverwaltung wird in der nächsten Version verfügbar sein.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Access Keys Tab Component  
+const AccessKeysTab = () => {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Access-Key Verwaltung</h2>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Key className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Key-Verwaltung in Entwicklung</h3>
+          <p className="text-gray-600">
+            Die erweiterte Access-Key-Verwaltung wird in der nächsten Version verfügbar sein.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Email Tab Component
+const EmailTab = () => {
+  const [emailType, setEmailType] = useState("single");
+  const [singleEmail, setSingleEmail] = useState({ email: "", name: "" });
+  const [bulkEmails, setBulkEmails] = useState([{ email: "", name: "" }]);
+  const [emailSettings, setEmailSettings] = useState({
+    expiresDays: "",
+    maxUsage: "",
+    courseIds: []
+  });
+  const [loading, setLoading] = useState(false);
+  const { admin } = useAuth();
+
+  const handleSingleEmailSend = async () => {
+    if (!singleEmail.email) {
+      toast.error("Bitte E-Mail-Adresse eingeben");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/admin/send-single-key`, {
+        email: singleEmail.email,
+        name: singleEmail.name,
+        expires_days: emailSettings.expiresDays ? parseInt(emailSettings.expiresDays) : null,
+        max_usage: emailSettings.maxUsage ? parseInt(emailSettings.maxUsage) : null,
+        course_ids: emailSettings.courseIds
+      }, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+
+      toast.success(`Access-Key erfolgreich an ${singleEmail.email} versendet!`);
+      setSingleEmail({ email: "", name: "" });
+    } catch (error) {
+      console.error('Error sending single key:', error);
+      toast.error(error.response?.data?.detail || "Fehler beim Versenden des Access-Keys");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkEmailSend = async () => {
+    const validEmails = bulkEmails.filter(e => e.email);
+    if (validEmails.length === 0) {
+      toast.error("Bitte mindestens eine gültige E-Mail-Adresse eingeben");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API}/admin/send-access-keys`, {
+        recipients: validEmails,
+        expires_days: emailSettings.expiresDays ? parseInt(emailSettings.expiresDays) : null,
+        max_usage: emailSettings.maxUsage ? parseInt(emailSettings.maxUsage) : null,
+        course_ids: emailSettings.courseIds
+      }, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+
+      const results = response.data.email_results;
+      toast.success(`${results.successful} von ${results.total} E-Mails erfolgreich versendet!`);
+      
+      if (results.failed > 0) {
+        toast.warning(`${results.failed} E-Mails konnten nicht versendet werden`);
+      }
+
+      setBulkEmails([{ email: "", name: "" }]);
+    } catch (error) {
+      console.error('Error sending bulk keys:', error);
+      toast.error(error.response?.data?.detail || "Fehler beim Versenden der Access-Keys");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addBulkEmail = () => {
+    setBulkEmails([...bulkEmails, { email: "", name: "" }]);
+  };
+
+  const removeBulkEmail = (index) => {
+    setBulkEmails(bulkEmails.filter((_, i) => i !== index));
+  };
+
+  const updateBulkEmail = (index, field, value) => {
+    const updated = [...bulkEmails];
+    updated[index][field] = value;
+    setBulkEmails(updated);
+  };
+
+  return (
+    <div>
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">E-Mail Versendung</h2>
+        <p className="text-gray-600">Senden Sie Access-Keys direkt per E-Mail an Teilnehmer</p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Email Type Selection */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Versendungsart auswählen</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4">
+              <Button
+                variant={emailType === "single" ? "default" : "outline"}
+                onClick={() => setEmailType("single")}
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Einzelne E-Mail
+              </Button>
+              <Button
+                variant={emailType === "bulk" ? "default" : "outline"}
+                onClick={() => setEmailType("bulk")}
+              >
+                <Users className="w-4 h-4 mr-2" />
+                Mehrere E-Mails
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Email Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Access-Key Einstellungen</CardTitle>
+            <CardDescription>
+              Optionale Einstellungen für die zu generierenden Access-Keys
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="expiresDays">Gültigkeitsdauer (Tage)</Label>
+                <Input
+                  id="expiresDays"
+                  type="number"
+                  placeholder="z.B. 30"
+                  value={emailSettings.expiresDays}
+                  onChange={(e) => setEmailSettings({...emailSettings, expiresDays: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="maxUsage">Maximale Nutzungen</Label>
+                <Input
+                  id="maxUsage"
+                  type="number"
+                  placeholder="z.B. 1"
+                  value={emailSettings.maxUsage}
+                  onChange={(e) => setEmailSettings({...emailSettings, maxUsage: e.target.value})}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Single Email Form */}
+        {emailType === "single" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Einzelne E-Mail senden
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="singleEmail">E-Mail-Adresse *</Label>
+                  <Input
+                    id="singleEmail"
+                    type="email"
+                    placeholder="teilnehmer@beispiel.de"
+                    value={singleEmail.email}
+                    onChange={(e) => setSingleEmail({...singleEmail, email: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="singleName">Name (optional)</Label>
+                  <Input
+                    id="singleName"
+                    placeholder="Max Mustermann"
+                    value={singleEmail.name}
+                    onChange={(e) => setSingleEmail({...singleEmail, name: e.target.value})}
+                  />
+                </div>
+              </div>
+              <Button 
+                onClick={handleSingleEmailSend}
+                disabled={loading || !singleEmail.email}
+                className="w-full"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {loading ? "Wird versendet..." : "Access-Key per E-Mail senden"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Bulk Email Form */}
+        {emailType === "bulk" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Mehrere E-Mails senden
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {bulkEmails.map((email, index) => (
+                <div key={index} className="flex gap-2 items-end">
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor={`bulkEmail${index}`}>E-Mail-Adresse</Label>
+                      <Input
+                        id={`bulkEmail${index}`}
+                        type="email"
+                        placeholder="teilnehmer@beispiel.de"
+                        value={email.email}
+                        onChange={(e) => updateBulkEmail(index, "email", e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`bulkName${index}`}>Name (optional)</Label>
+                      <Input
+                        id={`bulkName${index}`}
+                        placeholder="Max Mustermann"
+                        value={email.name}
+                        onChange={(e) => updateBulkEmail(index, "name", e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeBulkEmail(index)}
+                    disabled={bulkEmails.length === 1}
+                  >
+                    Entfernen
+                  </Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={addBulkEmail}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Weitere E-Mail hinzufügen
+                </Button>
+              </div>
+              <Button 
+                onClick={handleBulkEmailSend}
+                disabled={loading || !bulkEmails.some(e => e.email)}
+                className="w-full"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {loading ? "Wird versendet..." : "Access-Keys per E-Mail senden"}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Users Tab Component
+const UsersTab = () => {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Benutzerverwaltung</h2>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Benutzerverwaltung in Entwicklung</h3>
+          <p className="text-gray-600">
+            Die Benutzerverwaltung wird in der nächsten Version verfügbar sein.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 };
