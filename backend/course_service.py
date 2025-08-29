@@ -242,6 +242,14 @@ class CourseService:
             "course_id": course_id
         }).to_list(length=None)
         
+        # Convert ObjectId to string for JSON serialization
+        if course_progress and "_id" in course_progress:
+            course_progress["_id"] = str(course_progress["_id"])
+        
+        for progress in module_progress:
+            if "_id" in progress:
+                progress["_id"] = str(progress["_id"])
+        
         return {
             "course_progress": course_progress,
             "module_progress": module_progress
