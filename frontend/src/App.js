@@ -1216,6 +1216,14 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+            <Route 
+              path="/admin/courses/:courseId/edit" 
+              element={
+                <ProtectedRoute requireAdmin={true}>
+                  <CourseEditor />
+                </ProtectedRoute>
+              } 
+            />
           </Routes>
         </BrowserRouter>
       </div>
