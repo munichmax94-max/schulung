@@ -583,6 +583,28 @@ async def get_access_keys(current_admin: Admin = Depends(get_current_admin)):
             detail="Fehler beim Laden der Access-Keys"
         )
 
+@api_router.get("/debug/reset-admin")
+async def debug_reset_admin():
+    """Debug endpoint to reset admin password"""
+    try:
+        # Delete existing admin
+        await db.admins.delete_one({"email": "admin@schulungsportal.de"})
+        
+        # Create new admin
+        default_admin = Admin(
+            email="admin@schulungsportal.de",
+            password_hash=hash_password("admin123"),
+            name="Administrator"
+        )
+        admin_dict = default_admin.dict()
+        admin_dict["created_at"] = admin_dict["created_at"].isoformat()
+        
+        await db.admins.insert_one(admin_dict)
+        return {"message": "Admin reset successfully", "admin_email": "admin@schulungsportal.de", "password": "admin123"}
+        
+    except Exception as e:
+        return {"error": str(e)}
+
 @api_router.get("/debug/create-admin")
 async def debug_create_admin():
     """Debug endpoint to create admin user"""
