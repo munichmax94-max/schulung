@@ -14,10 +14,13 @@ import hashlib
 import secrets
 import jwt
 from passlib.context import CryptContext
-from email_service import email_service
+from email_service import get_email_service
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
+
+# Get email service instance
+email_service = get_email_service()
 
 # MongoDB connection
 mongo_url = os.environ['MONGO_URL']
