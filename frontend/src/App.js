@@ -680,18 +680,183 @@ const OverviewTab = () => {
 
 // Courses Tab Component
 const CoursesTab = () => {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { admin } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    loadCourses();
+  }, []);
+
+  const loadCourses = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/courses`, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      setCourses(response.data);
+    } catch (error) {
+      console.error('Error loading courses:', error);
+      toast.error("Fehler beim Laden der Kurse");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCourse = async (courseId) => {
+    if (!window.confirm("Sind Sie sicher, dass Sie diesen Kurs löschen möchten?")) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${API}/admin/courses/${courseId}`, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      toast.success("Kurs erfolgreich gelöscht!");
+      loadCourses();
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      toast.error("Fehler beim Löschen des Kurses");
+    }
+  };
+
+  const handlePublishToggle = async (course) => {
+    try {
+      if (course.status === 'published') {
+        await axios.post(`${API}/admin/courses/${course.id}/unpublish`, {}, {
+          headers: { Authorization: `Bearer ${admin.token}` }
+        });
+        toast.success("Kurs als Entwurf gesetzt!");
+      } else {
+        await axios.post(`${API}/admin/courses/${course.id}/publish`, {}, {
+          headers: { Authorization: `Bearer ${admin.token}` }
+        });
+        toast.success("Kurs veröffentlicht!");
+      }
+      loadCourses();
+    } catch (error) {
+      console.error('Error toggling publish status:', error);
+      toast.error("Fehler beim Ändern des Status");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-gray-600">Kurse werden geladen...</p>
+      </div>
+    );
+  }
+
   return (
     <div>
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Kursverwaltung</h2>
-      <Card>
-        <CardContent className="p-8 text-center">
-          <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Kursverwaltung in Entwicklung</h3>
-          <p className="text-gray-600">
-            Die erweiterte Kursverwaltung wird in der nächsten Version verfügbar sein.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Kursverwaltung</h2>
+          <p className="text-gray-600">Erstellen und verwalten Sie Ihre Schulungskurse</p>
+        </div>
+        <Button onClick={() => navigate('/admin/courses/new/edit')}>
+          <Plus className="w-4 h-4 mr-2" />
+          Neuer Kurs
+        </Button>
+      </div>
+
+      {courses.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Keine Kurse vorhanden</h3>
+            <p className="text-gray-600 mb-4">
+              Erstellen Sie Ihren ersten Kurs, um zu beginnen.
+            </p>
+            <Button onClick={() => navigate('/admin/courses/new/edit')}>
+              <Plus className="w-4 h-4 mr-2" />
+              Ersten Kurs erstellen
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {courses.map((course) => (
+            <Card key={course.id} className="hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-semibold">{course.title}</h3>
+                      <Badge variant={course.status === 'published' ? 'default' : 'secondary'}>
+                        {course.status === 'published' ? 'Veröffentlicht' : 'Entwurf'}
+                      </Badge>
+                      {course.modules && course.modules.length > 0 && (
+                        <Badge variant="outline">
+                          {course.modules.length} Module
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <p className="text-gray-600 mb-3 line-clamp-2">{course.description}</p>
+                    
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      {course.category && (
+                        <span>Kategorie: {course.category}</span>
+                      )}
+                      {course.difficulty_level && (
+                        <span>Schwierigkeit: {course.difficulty_level}</span>
+                      )}
+                      {course.estimated_duration_hours && (
+                        <span>Dauer: {course.estimated_duration_hours}h</span>
+                      )}
+                    </div>
+                    
+                    {course.tags && course.tags.length > 0 && (
+                      <div className="flex gap-2 mt-3">
+                        {course.tags.slice(0, 3).map((tag, index) => (
+                          <span key={index} className="text-xs px-2 py-1 bg-gray-100 rounded">
+                            {tag}
+                          </span>
+                        ))}
+                        {course.tags.length > 3 && (
+                          <span className="text-xs px-2 py-1 bg-gray-100 rounded">
+                            +{course.tags.length - 3} weitere
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`/admin/courses/${course.id}/edit`)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handlePublishToggle(course)}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteCourse(course.id)}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
