@@ -861,6 +861,147 @@ const CoursesTab = () => {
   );
 };
 
+// Course Assignment Dialog Component
+const CourseAssignmentDialog = ({ accessKey, courses, onSave, onClose }) => {
+  const [selectedCourses, setSelectedCourses] = useState(accessKey.course_ids || []);
+  const [saving, setSaving] = useState(false);
+
+  const handleCourseToggle = (courseId) => {
+    setSelectedCourses(prev => 
+      prev.includes(courseId) 
+        ? prev.filter(id => id !== courseId)
+        : [...prev, courseId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedCourses.length === courses.length) {
+      setSelectedCourses([]);
+    } else {
+      setSelectedCourses(courses.map(course => course.id));
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave(accessKey.id, selectedCourses);
+    } catch (error) {
+      console.error('Error saving course assignment:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const publishedCourses = courses.filter(course => course.status === 'published');
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex justify-between items-center p-6 border-b">
+          <div>
+            <h3 className="text-lg font-semibold">Kurse zuweisen</h3>
+            <p className="text-sm text-gray-600">
+              Access-Key: <code className="bg-gray-100 px-2 py-1 rounded">{accessKey.key.substring(0, 12)}...</code>
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-96">
+          {publishedCourses.length === 0 ? (
+            <div className="text-center py-8">
+              <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">Keine veröffentlichten Kurse verfügbar</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Select All Toggle */}
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">Alle Kurse auswählen</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSelectAll}
+                >
+                  {selectedCourses.length === publishedCourses.length ? 'Alle abwählen' : 'Alle auswählen'}
+                </Button>
+              </div>
+
+              {/* Course Selection */}
+              <div className="text-sm text-gray-600 mb-4">
+                {selectedCourses.length === 0 ? (
+                  <p>🌍 <strong>Keine Kurse ausgewählt</strong> → Zugriff auf alle veröffentlichten Kurse</p>
+                ) : (
+                  <p>🔒 <strong>{selectedCourses.length} Kurse ausgewählt</strong> → Beschränkter Zugriff nur auf gewählte Kurse</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                {publishedCourses.map((course) => (
+                  <div key={course.id} className="flex items-start gap-3 p-3 border rounded-lg hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      id={course.id}
+                      checked={selectedCourses.includes(course.id)}
+                      onChange={() => handleCourseToggle(course.id)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <label htmlFor={course.id} className="cursor-pointer">
+                        <h4 className="font-medium">{course.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">{course.description}</p>
+                        
+                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                          {course.category && (
+                            <span>📂 {course.category}</span>
+                          )}
+                          {course.difficulty_level && (
+                            <span>⭐ {course.difficulty_level}</span>
+                          )}
+                          {course.estimated_duration_hours && (
+                            <span>⏱️ {course.estimated_duration_hours}h</span>
+                          )}
+                          {course.modules && course.modules.length > 0 && (
+                            <span>📚 {course.modules.length} Module</span>
+                          )}
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-between items-center p-6 border-t bg-gray-50">
+          <div className="text-sm text-gray-600">
+            {selectedCourses.length > 0 ? (
+              `${selectedCourses.length} von ${publishedCourses.length} Kursen ausgewählt`
+            ) : (
+              "Zugriff auf alle Kurse (Standard)"
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? 'Speichern...' : 'Kurszuweisung speichern'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Access Keys Tab Component  
 const AccessKeysTab = () => {
   const [accessKeys, setAccessKeys] = useState([]);
