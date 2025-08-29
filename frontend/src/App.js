@@ -1514,8 +1514,24 @@ const EmailTab = () => {
     maxUsage: "",
     courseIds: []
   });
+  const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(false);
   const { admin } = useAuth();
+
+  useEffect(() => {
+    loadCourses();
+  }, []);
+
+  const loadCourses = async () => {
+    try {
+      const response = await axios.get(`${API}/admin/courses`, {
+        headers: { Authorization: `Bearer ${admin.token}` }
+      });
+      setCourses(response.data.filter(course => course.status === 'published'));
+    } catch (error) {
+      console.error('Error loading courses:', error);
+    }
+  };
 
   const handleSingleEmailSend = async () => {
     if (!singleEmail.email) {
@@ -1593,6 +1609,23 @@ const EmailTab = () => {
     setBulkEmails(updated);
   };
 
+  const handleCourseSelection = (courseId) => {
+    setEmailSettings(prev => ({
+      ...prev,
+      courseIds: prev.courseIds.includes(courseId)
+        ? prev.courseIds.filter(id => id !== courseId)
+        : [...prev.courseIds, courseId]
+    }));
+  };
+
+  const handleSelectAllCourses = () => {
+    const allCourseIds = courses.map(c => c.id);
+    setEmailSettings(prev => ({
+      ...prev,
+      courseIds: prev.courseIds.length === courses.length ? [] : allCourseIds
+    }));
+  };
+
   return (
     <div>
       <div className="mb-8">
@@ -1631,10 +1664,10 @@ const EmailTab = () => {
           <CardHeader>
             <CardTitle>Access-Key Einstellungen</CardTitle>
             <CardDescription>
-              Optionale Einstellungen für die zu generierenden Access-Keys
+              Konfigurieren Sie die Eigenschaften der zu generierenden Access-Keys
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="expiresDays">Gültigkeitsdauer (Tage)</Label>
@@ -1656,6 +1689,60 @@ const EmailTab = () => {
                   onChange={(e) => setEmailSettings({...emailSettings, maxUsage: e.target.value})}
                 />
               </div>
+            </div>
+
+            {/* Course Selection */}
+            <div>
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <Label>Kurszugriff festlegen</Label>
+                  <p className="text-sm text-gray-600">
+                    {emailSettings.courseIds.length === 0 ? (
+                      "🌍 Zugriff auf alle veröffentlichten Kurse (Standard)"
+                    ) : (
+                      `🔒 Beschränkt auf ${emailSettings.courseIds.length} ausgewählte Kurse`
+                    )}
+                  </p>
+                </div>
+                {courses.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSelectAllCourses}
+                  >
+                    {emailSettings.courseIds.length === courses.length ? 'Alle abwählen' : 'Alle auswählen'}
+                  </Button>
+                )}
+              </div>
+
+              {courses.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
+                  <BookOpen className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-gray-500">Keine veröffentlichten Kurse verfügbar</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4">
+                  {courses.map((course) => (
+                    <div key={course.id} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded">
+                      <input
+                        type="checkbox"
+                        id={`course-${course.id}`}
+                        checked={emailSettings.courseIds.includes(course.id)}
+                        onChange={() => handleCourseSelection(course.id)}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <label htmlFor={`course-${course.id}`} className="cursor-pointer">
+                          <h4 className="text-sm font-medium line-clamp-1">{course.title}</h4>
+                          {course.category && (
+                            <p className="text-xs text-gray-500">{course.category}</p>
+                          )}
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
