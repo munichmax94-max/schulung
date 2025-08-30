@@ -598,6 +598,7 @@ const CourseDetail = () => {
                 const moduleProgress = getModuleProgress(module.id);
                 const isCompleted = moduleProgress?.completed || false;
                 const hasQuiz = module.content.quiz && module.content.quiz.questions.length > 0;
+                const hasPresentation = module.content.presentation && module.content.presentation.slides.length > 0;
                 
                 return (
                   <Card key={module.id} className="hover:shadow-lg transition-shadow">
