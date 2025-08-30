@@ -216,6 +216,140 @@ class SchulungsportalAPITester:
             return True
         return success
 
+    def test_presentation_modules_exist(self):
+        """Test that presentation modules exist in courses"""
+        if not hasattr(self, 'course_data') or not self.course_data:
+            print("❌ No course data available for presentation test")
+            return False
+        
+        modules = self.course_data.get('modules', [])
+        presentation_modules = [m for m in modules if m.get('type') == 'presentation']
+        
+        if len(presentation_modules) > 0:
+            print(f"   ✅ Found {len(presentation_modules)} presentation module(s)")
+            for module in presentation_modules:
+                print(f"   - {module.get('title', 'Untitled')}")
+            return True
+        else:
+            print("   ❌ No presentation modules found")
+            return False
+
+    def test_presentation_structure(self):
+        """Test that presentation modules have proper structure"""
+        if not hasattr(self, 'course_data') or not self.course_data:
+            print("❌ No course data available for presentation structure test")
+            return False
+        
+        modules = self.course_data.get('modules', [])
+        presentation_modules = [m for m in modules if m.get('type') == 'presentation']
+        
+        if len(presentation_modules) == 0:
+            print("❌ No presentation modules to test structure")
+            return False
+        
+        success = True
+        for module in presentation_modules:
+            content = module.get('content', {})
+            presentation = content.get('presentation')
+            
+            if not presentation:
+                print(f"   ❌ Module '{module.get('title')}' missing presentation data")
+                success = False
+                continue
+            
+            # Check required presentation fields
+            required_fields = ['id', 'title', 'slides', 'theme']
+            for field in required_fields:
+                if field not in presentation:
+                    print(f"   ❌ Presentation missing required field: {field}")
+                    success = False
+            
+            # Check slides structure
+            slides = presentation.get('slides', [])
+            if len(slides) == 0:
+                print(f"   ❌ Presentation has no slides")
+                success = False
+            else:
+                print(f"   ✅ Presentation has {len(slides)} slides")
+                
+                # Check first slide structure
+                first_slide = slides[0]
+                slide_fields = ['id', 'title', 'layout', 'content', 'transition']
+                for field in slide_fields:
+                    if field not in first_slide:
+                        print(f"   ❌ Slide missing required field: {field}")
+                        success = False
+                
+                # Check slide content structure
+                slide_content = first_slide.get('content', {})
+                if 'title' in slide_content or 'body' in slide_content:
+                    print(f"   ✅ Slide content structure valid")
+                else:
+                    print(f"   ❌ Slide content missing title/body")
+                    success = False
+        
+        return success
+
+    def test_sample_course_has_three_modules(self):
+        """Test that the sample course has 3 modules (Einführung, Präsentation, Quiz)"""
+        if not hasattr(self, 'course_data') or not self.course_data:
+            print("❌ No course data available for module count test")
+            return False
+        
+        modules = self.course_data.get('modules', [])
+        
+        if len(modules) == 3:
+            print(f"   ✅ Course has expected 3 modules")
+            
+            # Check module types
+            module_types = [m.get('type') for m in modules]
+            expected_types = ['text', 'presentation', 'quiz']
+            
+            has_all_types = all(t in module_types for t in expected_types)
+            if has_all_types:
+                print(f"   ✅ Course has all expected module types: {module_types}")
+                return True
+            else:
+                print(f"   ❌ Course missing expected module types. Found: {module_types}")
+                return False
+        else:
+            print(f"   ❌ Course has {len(modules)} modules, expected 3")
+            return False
+
+    def test_presentation_slides_content(self):
+        """Test that presentation slides have expected content"""
+        if not hasattr(self, 'course_data') or not self.course_data:
+            print("❌ No course data available for slides content test")
+            return False
+        
+        modules = self.course_data.get('modules', [])
+        presentation_modules = [m for m in modules if m.get('type') == 'presentation']
+        
+        if len(presentation_modules) == 0:
+            print("❌ No presentation modules to test slides content")
+            return False
+        
+        presentation = presentation_modules[0].get('content', {}).get('presentation')
+        slides = presentation.get('slides', [])
+        
+        if len(slides) >= 4:
+            print(f"   ✅ Presentation has {len(slides)} slides (expected at least 4)")
+            
+            # Check that slides have varied content
+            slide_titles = [slide.get('content', {}).get('title', '') for slide in slides]
+            non_empty_titles = [t for t in slide_titles if t.strip()]
+            
+            if len(non_empty_titles) >= 3:
+                print(f"   ✅ Found {len(non_empty_titles)} slides with titles")
+                print(f"   Sample titles: {non_empty_titles[:3]}")
+                return True
+            else:
+                print(f"   ❌ Only {len(non_empty_titles)} slides have titles")
+                return False
+        else:
+            print(f"   ❌ Presentation has only {len(slides)} slides, expected at least 4")
+            return False
+
     def test_quiz_submission_correct_answers(self):
         """Test quiz submission with correct answers"""
         if not self.user_token:
