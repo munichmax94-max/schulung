@@ -422,6 +422,21 @@ const ModuleEditor = ({ courseId, modules = [], onModulesChange }) => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Presentation Manager */}
+      {isPresentationManagerOpen && (
+        <div className="fixed inset-0 z-50 bg-white">
+          <PresentationManager
+            presentation={editingModule?.content?.presentation}
+            onSave={(presentation) => {
+              updateModuleContent('presentation', presentation);
+              setIsPresentationManagerOpen(false);
+              toast.success("Präsentation gespeichert!");
+            }}
+            onClose={() => setIsPresentationManagerOpen(false)}
+          />
+        </div>
+      )}
     </div>
   );
 };
