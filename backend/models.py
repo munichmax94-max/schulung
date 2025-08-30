@@ -15,6 +15,7 @@ class ModuleType(str, Enum):
     video = "video"
     quiz = "quiz"
     file = "file"
+    presentation = "presentation"
 
 class QuestionType(str, Enum):
     multiple_choice = "multiple_choice"
