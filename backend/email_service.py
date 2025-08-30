@@ -304,7 +304,7 @@ class EmailService:
         Ihr Access-Key: {access_key}
 
         So greifen Sie auf Ihre Schulungen zu:
-        1. Besuchen Sie: https://edukeys.preview.emergentagent.com
+        1. Besuchen Sie: {os.environ.get('FRONTEND_URL', 'https://app.emergent.host')}
         2. Geben Sie Ihren Access-Key ein: {access_key}
         3. Klicken Sie auf "Zugriff freischalten"
         4. Beginnen Sie mit Ihrer Schulung
