@@ -919,6 +919,7 @@ Dieser Kurs demonstriert die erweiterten Funktionen des Schulungsportals mit:
 - Rich-Text-Inhalten
 - Interaktiven Modulen  
 - Quiz-Systemen
+- Präsentations-Features
 - Fortschrittsverfolgung
 
 Viel Erfolg beim Lernen!""",
@@ -926,7 +927,7 @@ Viel Erfolg beim Lernen!""",
                 tags=["grundlagen", "schulung", "demo"],
                 category="Grundlagen",
                 difficulty_level="beginner",
-                estimated_duration_hours=2.0,
+                estimated_duration_hours=2.5,
                 modules=[
                     CourseModule(
                         title="Einführung",
@@ -945,6 +946,67 @@ Viel Erfolg beim Lernen!""",
                         ),
                         order=0,
                         estimated_duration_minutes=30
+                    ),
+                    CourseModule(
+                        title="Schulungskonzepte - Präsentation",
+                        description="Präsentation über moderne Schulungskonzepte",
+                        type=ModuleType.presentation,
+                        content=ModuleContent(
+                            presentation=Presentation(
+                                title="Moderne Schulungskonzepte",
+                                description="Eine interaktive Präsentation über zeitgemäße Lernansätze",
+                                theme="white",
+                                slides=[
+                                    Slide(
+                                        title="Willkommen",
+                                        layout="title-only",
+                                        content=SlideContent(
+                                            title="Moderne Schulungskonzepte",
+                                            subtitle="Effektive Lernstrategien für heute",
+                                            background="#f8fafc"
+                                        ),
+                                        transition="slide"
+                                    ),
+                                    Slide(
+                                        title="Lernziele",
+                                        layout="list",
+                                        content=SlideContent(
+                                            title="Was werden Sie lernen?",
+                                            list=[
+                                                "Verschiedene Lerntypen verstehen",
+                                                "Moderne Schulungsmethoden anwenden",
+                                                "Digitale Tools effektiv einsetzen",
+                                                "Lernerfolg messbar machen"
+                                            ],
+                                            background="#f0f9ff"
+                                        ),
+                                        transition="fade"
+                                    ),
+                                    Slide(
+                                        title="Digitale Transformation",
+                                        layout="title-content",
+                                        content=SlideContent(
+                                            title="Die digitale Revolution im Lernen",
+                                            body="E-Learning hat das traditionelle Klassenzimmer revolutioniert. Interaktive Inhalte, personalisierte Lernpfade und sofortiges Feedback ermöglichen es Lernenden, in ihrem eigenen Tempo zu lernen.\n\nModerne Lernplattformen bieten:\n• Multimediale Inhalte\n• Gamification-Elemente\n• Social Learning\n• Mobile Zugänglichkeit",
+                                            background="#f0fdf4"
+                                        ),
+                                        transition="convex"
+                                    ),
+                                    Slide(
+                                        title="Zusammenfassung",
+                                        layout="quote",
+                                        content=SlideContent(
+                                            title="Albert Einstein",
+                                            body="Lernen ist Erfahrung. Alles andere ist einfach nur Information.",
+                                            background="#fefce8"
+                                        ),
+                                        transition="zoom"
+                                    )
+                                ]
+                            )
+                        ),
+                        order=1,
+                        estimated_duration_minutes=20
                     ),
                     CourseModule(
                         title="Wissenstest",
@@ -969,7 +1031,7 @@ Viel Erfolg beim Lernen!""",
                                 passing_score=70
                             )
                         ),
-                        order=1,
+                        order=2,
                         estimated_duration_minutes=15
                     )
                 ]
