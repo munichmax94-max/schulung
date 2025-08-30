@@ -45,7 +45,8 @@ const ModuleEditor = ({ courseId, modules = [], onModulesChange }) => {
         text_content: "",
         video_url: "",
         file_urls: [],
-        quiz: null
+        quiz: null,
+        presentation: null
       },
       is_required: true,
       estimated_duration_minutes: ""
