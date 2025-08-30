@@ -400,6 +400,11 @@ const CourseDetail = () => {
     setShowQuiz(true);
   };
 
+  const handleStartPresentation = (module) => {
+    setActiveModule(module);
+    setShowPresentation(true);
+  };
+
   const handleQuizComplete = (result) => {
     setShowQuiz(false);
     setActiveModule(null);
@@ -411,8 +416,24 @@ const CourseDetail = () => {
     fetchProgress(); // Refresh progress after quiz completion
   };
 
+  const handlePresentationComplete = (result) => {
+    setShowPresentation(false);
+    setActiveModule(null);
+    
+    if (result && result.completed) {
+      toast.success("Präsentation erfolgreich abgeschlossen! 🎉");
+    }
+    
+    fetchProgress(); // Refresh progress after presentation completion
+  };
+
   const handleQuizCancel = () => {
     setShowQuiz(false);
+    setActiveModule(null);
+  };
+
+  const handlePresentationCancel = () => {
+    setShowPresentation(false);
     setActiveModule(null);
   };
 
