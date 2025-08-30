@@ -666,6 +666,23 @@ const CourseDetail = () => {
 
                             {/* Module Actions */}
                             <div className="flex gap-2 mt-4">
+                              {hasPresentation && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleStartPresentation(module)}
+                                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                                >
+                                  <Presentation className="w-4 h-4 mr-2" />
+                                  Präsentation starten
+                                  {moduleProgress?.score !== undefined && (
+                                    <Badge variant="outline" className="ml-2">
+                                      Abgeschlossen
+                                    </Badge>
+                                  )}
+                                </Button>
+                              )}
+
                               {hasQuiz && (
                                 <Button
                                   variant="outline"
