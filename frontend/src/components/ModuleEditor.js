@@ -19,6 +19,7 @@ const API = `${BACKEND_URL}/api`;
 const ModuleEditor = ({ courseId, modules = [], onModulesChange }) => {
   const [editingModule, setEditingModule] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isPresentationManagerOpen, setIsPresentationManagerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const adminToken = localStorage.getItem('adminToken');
