@@ -15,8 +15,13 @@ import jwt
 from passlib.context import CryptContext
 from email_service import get_email_service
 
-# Import all models
-from models import *
+from models import (
+    Course, CourseCreate, CourseUpdate, CourseModule, ModuleCreate, ModuleUpdate,
+    CourseProgress, ModuleProgress, Quiz, QuizAttempt, QuizQuestion, QuizOption,
+    CourseStatus, ModuleType, AccessKey, User, Admin, AccessKeyValidation,
+    AdminLogin, EmailRequest, BulkEmailRequest, AccessKeyCreate,
+    Presentation, Slide, SlideContent, ModuleContent, QuestionType
+)
 from course_service import CourseService
 
 ROOT_DIR = Path(__file__).parent
