@@ -331,6 +331,7 @@ const CourseDetail = () => {
   const [progress, setProgress] = useState(null);
   const [activeModule, setActiveModule] = useState(null);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showPresentation, setShowPresentation] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
