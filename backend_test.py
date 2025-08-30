@@ -4,7 +4,9 @@ import os
 from datetime import datetime
 
 class SchulungsportalAPITester:
-    def __init__(self, base_url="https://edukeys.preview.emergentagent.com"):
+    def __init__(self, base_url=None):
+        if base_url is None:
+            base_url = os.environ.get('BACKEND_URL', 'http://localhost:8001')
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
         self.user_token = None
