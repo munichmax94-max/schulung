@@ -7,9 +7,10 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit, FileText, Video, HelpCircle, File, GripVertical } from "lucide-react";
+import { Plus, Trash2, Edit, FileText, Video, HelpCircle, File, GripVertical, Presentation } from "lucide-react";
 import RichTextEditor from './RichTextEditor';
 import QuizEditor from './QuizEditor';
+import PresentationManager from './PresentationManager';
 import axios from "axios";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
