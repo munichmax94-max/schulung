@@ -267,7 +267,7 @@ class EmailService:
                 </div>
                 
                 <div style="text-align: center;">
-                    <a href="https://edukeys.preview.emergentagent.com" class="button">
+                    <a href="{os.environ.get('FRONTEND_URL', 'https://app.emergent.host')}" class="button">
                         Jetzt zum Schulungsportal
                     </a>
                 </div>
