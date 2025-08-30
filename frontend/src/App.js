@@ -700,7 +700,7 @@ const CourseDetail = () => {
                                 </Button>
                               )}
 
-                              {!hasQuiz && !isCompleted && (
+                              {!hasQuiz && !hasPresentation && !isCompleted && (
                                 <Button
                                   variant="outline"
                                   size="sm"
