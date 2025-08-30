@@ -342,6 +342,43 @@ const ModuleEditor = ({ courseId, modules = [], onModulesChange }) => {
                   </div>
                 )}
 
+                {editingModule.type === 'presentation' && (
+                  <div className="space-y-4">
+                    <div className="p-6 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                      <Presentation className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                      <h4 className="font-medium text-gray-900 mb-2">Präsentation bearbeiten</h4>
+                      <p className="text-sm text-gray-600 mb-4">
+                        {editingModule.content.presentation?.slides?.length > 0 
+                          ? `${editingModule.content.presentation.slides.length} Folien vorhanden`
+                          : 'Noch keine Präsentation erstellt'
+                        }
+                      </p>
+                      <Button 
+                        onClick={() => setIsPresentationManagerOpen(true)}
+                        variant="outline"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Präsentation {editingModule.content.presentation ? 'bearbeiten' : 'erstellen'}
+                      </Button>
+                    </div>
+                    
+                    {editingModule.content.presentation?.title && (
+                      <div className="bg-emerald-50 p-4 rounded-lg">
+                        <h5 className="font-medium text-emerald-900 mb-1">
+                          {editingModule.content.presentation.title}
+                        </h5>
+                        <p className="text-sm text-emerald-700">
+                          {editingModule.content.presentation.description || 'Keine Beschreibung'}
+                        </p>
+                        <div className="mt-2 flex items-center gap-4 text-xs text-emerald-600">
+                          <span>📊 {editingModule.content.presentation.slides?.length || 0} Folien</span>
+                          <span>🎨 Theme: {editingModule.content.presentation.theme || 'white'}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {editingModule.type === 'quiz' && (
                   <QuizEditor
                     quiz={editingModule.content.quiz}
