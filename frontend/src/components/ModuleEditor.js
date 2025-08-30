@@ -26,6 +26,7 @@ const ModuleEditor = ({ courseId, modules = [], onModulesChange }) => {
   const moduleTypes = [
     { value: 'text', label: 'Text', icon: FileText, description: 'Rich-Text Inhalte' },
     { value: 'video', label: 'Video', icon: Video, description: 'Video-Inhalte' },
+    { value: 'presentation', label: 'Präsentation', icon: Presentation, description: 'PowerPoint-ähnliche Präsentationen' },
     { value: 'quiz', label: 'Quiz', icon: HelpCircle, description: 'Interaktive Quizzes' },
     { value: 'file', label: 'Dateien', icon: File, description: 'Downloadbare Dateien' }
   ];
