@@ -468,6 +468,21 @@ const CourseDetail = () => {
     );
   }
 
+  // Show presentation if active
+  if (showPresentation && activeModule && activeModule.content.presentation) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+        <SlideViewer
+          slides={activeModule.content.presentation.slides || []}
+          courseId={courseId}
+          moduleId={activeModule.id}
+          onComplete={handlePresentationComplete}
+          onClose={handlePresentationCancel}
+        />
+      </div>
+    );
+  }
+
   // Show quiz if active
   if (showQuiz && activeModule && activeModule.content.quiz) {
     return (
