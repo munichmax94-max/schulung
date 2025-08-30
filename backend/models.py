@@ -47,12 +47,44 @@ class Quiz(BaseModel):
     max_attempts: Optional[int] = None
     time_limit_minutes: Optional[int] = None
 
+# Slide Models for Presentations
+class SlideContent(BaseModel):
+    title: str = ""
+    subtitle: str = ""
+    body: str = ""
+    image: str = ""
+    video: str = ""
+    code: str = ""
+    list: List[str] = []
+    background: str = "#ffffff"
+    text_color: str = "#333333"
+
+class Slide(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str = "Neue Folie"
+    layout: str = "title-content"  # title-content, title-only, content-only, two-columns, image-content, list, code, quote
+    content: SlideContent = SlideContent()
+    transition: str = "slide"  # slide, fade, convex, concave, zoom
+    notes: str = ""
+
+class Presentation(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: Optional[str] = ""
+    slides: List[Slide] = []
+    theme: str = "white"
+    auto_slide_duration: Optional[int] = None  # seconds, None = manual
+    loop: bool = False
+    controls: bool = True
+    progress: bool = True
+
 # Module Models
 class ModuleContent(BaseModel):
     text_content: Optional[str] = ""  # Rich text content
     video_url: Optional[str] = None
     file_urls: List[str] = []
     quiz: Optional[Quiz] = None
+    presentation: Optional[Presentation] = None
 
 class CourseModule(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
